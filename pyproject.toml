@@ -1,0 +1,10 @@
+[project]
+name = "fund-scope"
+version = "0.1.0"
+description = "FundScope Agent: explainable fund checkup and risk research assistant."
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["tests"]
+

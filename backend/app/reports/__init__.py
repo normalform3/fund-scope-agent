@@ -1,0 +1,2 @@
+"""Fund checkup report generation."""
+
