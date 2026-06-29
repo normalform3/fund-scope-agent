@@ -284,7 +284,7 @@ GET /api/llm/health
 
 Purpose:
 
-- test whether the configured Bailian OpenAI-compatible endpoint can reach `deepseek-v4-flash`,
+- test whether the configured Bailian OpenAI-compatible endpoint can reach `qwen3.6-plus`,
 - return a safe connection status to the frontend,
 - avoid exposing API keys or private endpoint values.
 
@@ -292,7 +292,7 @@ Required environment variables:
 
 - `DASHSCOPE_API_KEY`
 - `DASHSCOPE_BASE_URL`
-- `DASHSCOPE_MODEL`, defaults to `deepseek-v4-flash`
+- `DASHSCOPE_MODEL`, defaults to `qwen3.6-plus`
 
 Current usage:
 

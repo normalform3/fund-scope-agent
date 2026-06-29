@@ -6,7 +6,7 @@ class LLMService:
     def __init__(self) -> None:
         self.api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
         self.base_url = os.getenv("DASHSCOPE_BASE_URL", "").strip()
-        self.model = os.getenv("DASHSCOPE_MODEL", "deepseek-v4-flash").strip()
+        self.model = os.getenv("DASHSCOPE_MODEL", "qwen3.6-plus").strip()
 
     def test_connection(self) -> Dict[str, object]:
         if not self.api_key:

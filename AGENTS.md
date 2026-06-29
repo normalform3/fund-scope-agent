@@ -59,8 +59,10 @@ docs/
   PROJECT_STATUS.md              current implementation status
   TASKS.md                       milestone checklist
 frontend/src/
-  App.vue                        main workbench UI
+  App.vue                        main workbench orchestration
   api.ts                         frontend API client and TS types
+  components/                    focused Vue workbench sections
+  composables/                   frontend progress and chart state helpers
 tests/                           backend unit tests
 ```
 

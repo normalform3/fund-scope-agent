@@ -283,7 +283,7 @@ Required environment variables:
 
 - `DASHSCOPE_API_KEY`
 - `DASHSCOPE_BASE_URL`
-- `DASHSCOPE_MODEL`, defaults to `deepseek-v4-flash`
+- `DASHSCOPE_MODEL`, defaults to `qwen3.6-plus`
 
 Example:
 
@@ -296,7 +296,7 @@ Response:
 ```json
 {
   "ok": true,
-  "model": "deepseek-v4-flash",
+  "model": "qwen3.6-plus",
   "message": "基金研究 Agent 服务连接正常。",
   "request_id": "...",
   "usage": {}

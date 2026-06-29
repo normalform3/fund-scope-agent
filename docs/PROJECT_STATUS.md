@@ -28,12 +28,14 @@ Backend:
 Frontend:
 
 - Vue 3 + Vite app created.
-- Main workbench implemented in `App.vue`.
+- Main workbench orchestrated in `App.vue`.
+- Notion-style workspace UI split into focused Vue components.
+- Frontend progress and chart state extracted into composables.
 - API client and TypeScript types implemented.
 - ECharts renders NAV, cumulative return, and drawdown charts.
 - Loading, error, empty, report, tab, and metric states implemented.
 - Visual progress bar and staged report generation status implemented.
-- Left rail actions now focus search or switch report tabs.
+- Left workspace navigation now focuses search or switches report tabs.
 
 Docs:
 
@@ -97,6 +99,9 @@ Tests and verification:
 
 2026-06-29:
 
+- Refactored the Vue frontend into a Notion-style research workspace.
+- Split the former single-file workbench into focused components and composables.
+- Preserved the existing backend API contract, report flow, ECharts views, progress states, and model health test.
 - Added visual progress bar and staged generation messages for slow AKShare report generation.
 - Made left rail menu buttons interactive.
 - Parallelized report data collection in the workflow.
