@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from typing import Dict, List
 
 from app.data_providers.base import FundDataProvider
-from app.models import FundProfile, NavPoint
+from app.models import FundFee, FundHolding, FundProfile, IndustryAllocation, NavPoint
 
 
 class SampleFundDataProvider(FundDataProvider):
@@ -23,6 +23,11 @@ class SampleFundDataProvider(FundDataProvider):
                 redeem_status="开放赎回",
                 fee_note="费率以基金公司公告为准",
                 benchmark="沪深300指数收益率 * 70% + 中债指数收益率 * 30%",
+                investment_objective="示例：在控制风险的前提下追求长期增值。",
+                investment_strategy="示例：精选具有竞争优势的权益资产。",
+                custodian="示例托管银行",
+                rating="示例数据",
+                data_source="sample",
             ),
             "000001": FundProfile(
                 code="000001",
@@ -36,6 +41,11 @@ class SampleFundDataProvider(FundDataProvider):
                 redeem_status="开放赎回",
                 fee_note="费率以基金公司公告为准",
                 benchmark="中证800指数收益率 * 80% + 中债指数收益率 * 20%",
+                investment_objective="示例：追求基金资产长期稳定增值。",
+                investment_strategy="示例：权益和固收资产均衡配置。",
+                custodian="示例托管银行",
+                rating="示例数据",
+                data_source="sample",
             ),
         }
 
@@ -59,6 +69,34 @@ class SampleFundDataProvider(FundDataProvider):
             raise LookupError("未找到基金净值")
         return _build_sample_nav(seed=0 if code == "110011" else 7)
 
+    def get_holdings(self, code: str) -> List[FundHolding]:
+        if code not in self._profiles:
+            raise LookupError("未找到基金持仓")
+        return [
+            FundHolding("000858", "五粮液（示例）", 9.82, 920.0, 141229.20, "2024年4季度"),
+            FundHolding("00700", "腾讯控股（示例）", 9.60, 501.5, 138118.06, "2024年4季度"),
+            FundHolding("600519", "贵州茅台（示例）", 8.10, 73.0, 116000.00, "2024年4季度"),
+        ]
+
+    def get_industry_allocation(self, code: str) -> List[IndustryAllocation]:
+        if code not in self._profiles:
+            raise LookupError("未找到行业配置")
+        return [
+            IndustryAllocation("必需消费品（示例）", 42.0, 5725984000.0, "2024-12-31"),
+            IndustryAllocation("非必需消费品（示例）", 35.15, 4792501000.0, "2024-12-31"),
+            IndustryAllocation("信息技术（示例）", 12.3, 1678000000.0, "2024-12-31"),
+        ]
+
+    def get_fees(self, code: str) -> List[FundFee]:
+        if code not in self._profiles:
+            raise LookupError("未找到费率")
+        return [
+            FundFee("交易状态", "申购状态", self._profiles[code].purchase_status),
+            FundFee("交易状态", "赎回状态", self._profiles[code].redeem_status),
+            FundFee("运作费用", "管理费率", "1.20%（示例）"),
+            FundFee("运作费用", "托管费率", "0.20%（示例）"),
+        ]
+
 
 def _build_sample_nav(seed: int) -> List[NavPoint]:
     start = date(2021, 1, 4)
@@ -81,4 +119,3 @@ def _build_sample_nav(seed: int) -> List[NavPoint]:
             )
         )
     return points
-

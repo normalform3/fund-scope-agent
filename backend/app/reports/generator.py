@@ -2,20 +2,35 @@ from typing import Dict, List
 
 from app.compliance.checker import enforce_report_compliance
 from app.metrics.calculator import calculate_risk_metrics
-from app.models import FundProfile, NavPoint, RiskMetrics
+from app.models import FundFee, FundHolding, FundProfile, IndustryAllocation, NavPoint, RiskMetrics
 
 
-def generate_fund_checkup_report(profile: FundProfile, nav_points: List[NavPoint]) -> Dict[str, object]:
+def generate_fund_checkup_report(
+    profile: FundProfile,
+    nav_points: List[NavPoint],
+    holdings: List[FundHolding] = None,
+    industry_allocation: List[IndustryAllocation] = None,
+    fees: List[FundFee] = None,
+    llm_commentary: str = "",
+) -> Dict[str, object]:
+    holdings = holdings or []
+    industry_allocation = industry_allocation or []
+    fees = fees or []
     metrics = calculate_risk_metrics(nav_points)
     report = {
         "fund": profile.to_dict(),
         "conclusion": _classify_conclusion(metrics),
         "summary": _build_summary(profile, metrics),
         "metrics": metrics.to_dict(),
+        "holdings": [item.to_dict() for item in holdings],
+        "industry_allocation": [item.to_dict() for item in industry_allocation],
+        "fees": [item.to_dict() for item in fees],
         "risk_notes": _risk_notes(metrics),
+        "holding_notes": _holding_notes(holdings, industry_allocation),
         "suitable_for": _suitable_for(metrics),
         "unsuitable_for": _unsuitable_for(metrics),
-        "data_notes": _data_notes(metrics, nav_points),
+        "data_notes": _data_notes(metrics, nav_points, holdings, industry_allocation, fees),
+        "llm_commentary": llm_commentary,
         "compliance_warnings": [],
     }
     return enforce_report_compliance(report)
@@ -77,6 +92,31 @@ def _risk_notes(metrics: RiskMetrics) -> List[str]:
     return notes
 
 
+def _holding_notes(holdings: List[FundHolding], industry_allocation: List[IndustryAllocation]) -> List[str]:
+    notes: List[str] = []
+    if holdings:
+        top_holding = holdings[0]
+        notes.append(
+            "最新可得持仓中，第一大持仓为 %s，占净值比例约 %s。"
+            % (top_holding.stock_name, _format_percent_from_ratio(top_holding.ratio))
+        )
+        top_ten_ratio = sum(item.ratio or 0 for item in holdings[:10])
+        if top_ten_ratio:
+            notes.append("前十大持仓合计占净值比例约 %.2f%%，可用于观察集中度。" % top_ten_ratio)
+    else:
+        notes.append("暂未取得真实持仓数据，无法判断个股集中度。")
+
+    if industry_allocation:
+        top_industry = industry_allocation[0]
+        notes.append(
+            "最新可得行业配置中，第一大行业为 %s，占净值比例约 %s。"
+            % (top_industry.industry, _format_percent_from_ratio(top_industry.ratio))
+        )
+    else:
+        notes.append("暂未取得真实行业配置数据，无法判断行业集中度。")
+    return notes
+
+
 def _suitable_for(metrics: RiskMetrics) -> List[str]:
     if metrics.total_return is None:
         return ["希望先补齐历史数据后再判断的用户"]
@@ -92,11 +132,18 @@ def _unsuitable_for(metrics: RiskMetrics) -> List[str]:
     return items
 
 
-def _data_notes(metrics: RiskMetrics, nav_points: List[NavPoint]) -> List[str]:
+def _data_notes(
+    metrics: RiskMetrics,
+    nav_points: List[NavPoint],
+    holdings: List[FundHolding],
+    industry_allocation: List[IndustryAllocation],
+    fees: List[FundFee],
+) -> List[str]:
     notes = list(metrics.warnings)
     if nav_points:
         notes.append("净值样本区间：%s 至 %s。" % (nav_points[0].date, nav_points[-1].date))
-    notes.append("V1 未接入持仓、基金经理变更和同类排名，相关判断将在后续版本增强。")
+    notes.append("真实持仓条数：%s；真实行业配置条数：%s；费率/交易规则条数：%s。" % (len(holdings), len(industry_allocation), len(fees)))
+    notes.append("V1 尚未接入基金经理变更归因、同类排名和用户风险画像，相关判断将在后续版本增强。")
     return notes
 
 
@@ -105,3 +152,8 @@ def _format_percent(value: object) -> str:
         return "无法计算"
     return "%.2f%%" % (value * 100)
 
+
+def _format_percent_from_ratio(value: object) -> str:
+    if not isinstance(value, (float, int)):
+        return "无法计算"
+    return "%.2f%%" % value

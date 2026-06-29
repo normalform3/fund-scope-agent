@@ -15,6 +15,11 @@ class FundProfile:
     redeem_status: str
     fee_note: str
     benchmark: str = ""
+    investment_objective: str = ""
+    investment_strategy: str = ""
+    custodian: str = ""
+    rating: str = ""
+    data_source: str = ""
 
     def to_dict(self) -> Dict[str, str]:
         return asdict(self)
@@ -27,6 +32,40 @@ class NavPoint:
     accumulated_nav: float
 
     def to_dict(self) -> Dict[str, float]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FundHolding:
+    stock_code: str
+    stock_name: str
+    ratio: Optional[float]
+    shares: Optional[float]
+    market_value: Optional[float]
+    period: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class IndustryAllocation:
+    industry: str
+    ratio: Optional[float]
+    market_value: Optional[float]
+    report_date: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FundFee:
+    category: str
+    condition: str
+    value: str
+
+    def to_dict(self) -> Dict[str, str]:
         return asdict(self)
 
 
@@ -60,4 +99,3 @@ class RiskMetrics:
         payload = asdict(self)
         payload["drawdown_series"] = [point.to_dict() for point in self.drawdown_series]
         return payload
-

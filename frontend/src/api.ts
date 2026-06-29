@@ -10,6 +10,11 @@ export interface FundProfile {
   redeem_status: string;
   fee_note: string;
   benchmark: string;
+  investment_objective: string;
+  investment_strategy: string;
+  custodian: string;
+  rating: string;
+  data_source: string;
 }
 
 export interface NavPoint {
@@ -40,16 +45,52 @@ export interface RiskMetrics {
   warnings: string[];
 }
 
+export interface FundHolding {
+  stock_code: string;
+  stock_name: string;
+  ratio: number | null;
+  shares: number | null;
+  market_value: number | null;
+  period: string;
+}
+
+export interface IndustryAllocation {
+  industry: string;
+  ratio: number | null;
+  market_value: number | null;
+  report_date: string;
+}
+
+export interface FundFee {
+  category: string;
+  condition: string;
+  value: string;
+}
+
 export interface FundCheckupReport {
   fund: FundProfile;
   conclusion: string;
   summary: string;
   metrics: RiskMetrics;
+  holdings: FundHolding[];
+  industry_allocation: IndustryAllocation[];
+  fees: FundFee[];
   risk_notes: string[];
+  holding_notes: string[];
   suitable_for: string[];
   unsuitable_for: string[];
   data_notes: string[];
+  llm_commentary: string;
   compliance_warnings: string[];
+  errors?: string[];
+}
+
+export interface LlmHealth {
+  ok: boolean;
+  model: string;
+  message: string;
+  request_id?: string;
+  usage?: Record<string, unknown>;
 }
 
 export async function searchFunds(query: string): Promise<FundProfile[]> {
@@ -70,7 +111,11 @@ export async function createFundCheckup(code: string): Promise<FundCheckupReport
   if (!response.ok) {
     throw new Error("体检报告生成失败");
   }
-  return response.json();
+  const payload = await response.json();
+  if (!payload.fund || !payload.metrics) {
+    throw new Error(payload.summary || "体检报告结构不完整");
+  }
+  return payload;
 }
 
 export async function fetchNav(code: string): Promise<NavPoint[]> {
@@ -82,3 +127,10 @@ export async function fetchNav(code: string): Promise<NavPoint[]> {
   return payload.items;
 }
 
+export async function testLlmConnection(): Promise<LlmHealth> {
+  const response = await fetch("/api/llm/health");
+  if (!response.ok) {
+    throw new Error("模型服务连接测试失败");
+  }
+  return response.json();
+}

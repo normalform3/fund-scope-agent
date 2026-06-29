@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.agents.fund_checkup_graph import FundCheckupWorkflow
 from app.services.fund_service import FundService
+from app.services.llm_service import LLMService
 
 app = FastAPI(title="FundScope Agent API", version="0.1.0")
 app.add_middleware(
@@ -18,6 +19,7 @@ app.add_middleware(
 
 fund_service = FundService()
 workflow = FundCheckupWorkflow(fund_service=fund_service)
+llm_service = LLMService()
 
 
 class FundCheckupRequest(BaseModel):
@@ -49,10 +51,31 @@ def get_nav(code: str) -> Dict[str, object]:
         points = fund_service.get_nav_history(code)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="净值数据获取失败：%s" % str(exc))
     return {"items": [point.to_dict() for point in points]}
+
+
+@app.get("/api/funds/{code}/holdings")
+def get_holdings(code: str) -> Dict[str, object]:
+    return {"items": [item.to_dict() for item in fund_service.get_holdings(code)]}
+
+
+@app.get("/api/funds/{code}/industry-allocation")
+def get_industry_allocation(code: str) -> Dict[str, object]:
+    return {"items": [item.to_dict() for item in fund_service.get_industry_allocation(code)]}
+
+
+@app.get("/api/funds/{code}/fees")
+def get_fees(code: str) -> Dict[str, object]:
+    return {"items": [item.to_dict() for item in fund_service.get_fees(code)]}
 
 
 @app.post("/api/reports/fund-checkup")
 def create_fund_checkup(request: FundCheckupRequest) -> Dict[str, object]:
     return workflow.run(request.code.strip())
 
+
+@app.get("/api/llm/health")
+def llm_health() -> Dict[str, object]:
+    return llm_service.test_connection()

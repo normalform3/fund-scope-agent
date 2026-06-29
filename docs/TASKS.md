@@ -13,9 +13,10 @@
 
 - [x] Sample offline provider.
 - [x] AKShare adapter entrypoint.
+- [x] AKShare real profile, unit/accumulated NAV, holdings, industry allocation, and fees.
 - [x] SQLite cache.
 - [x] Total return, annualized return, volatility, max drawdown, Sharpe ratio, Calmar ratio, win rate.
-- [ ] Validate AKShare field mapping against live API.
+- [x] Validate AKShare field mapping against live API for `110011`.
 - [ ] Add provider integration tests with recorded fixtures.
 
 ## M2 Checkup Report API
@@ -25,6 +26,10 @@
 - [x] `GET /api/funds/{code}/profile`.
 - [x] `GET /api/funds/{code}/nav`.
 - [x] `POST /api/reports/fund-checkup`.
+- [x] `GET /api/funds/{code}/holdings`.
+- [x] `GET /api/funds/{code}/industry-allocation`.
+- [x] `GET /api/funds/{code}/fees`.
+- [x] `GET /api/llm/health`.
 - [x] Report compliance enforcement.
 - [ ] Expand workflow into explicit LangGraph nodes after baseline is stable.
 
@@ -35,6 +40,8 @@
 - [x] Metric cards.
 - [x] NAV, return, and drawdown charts.
 - [x] Structured report panel.
+- [x] Model connection test button.
+- [x] Holding, industry, and fee rows in report panel.
 - [ ] Browser verification after dependencies are installed.
 - [ ] Add screenshot to README.
 

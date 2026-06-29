@@ -2,9 +2,9 @@
 
 ## AKShare
 
-Use in development and portfolio demos when explicitly enabled with `FUNDSCOPE_DATA_PROVIDER=akshare`.
+Use in development and portfolio demos. The default provider is now `akshare`.
 
-The default local provider is `sample` so the MVP remains fast and demoable without live data access.
+Set `FUNDSCOPE_DATA_PROVIDER=sample` to force offline demo data.
 
 Planned data:
 
@@ -14,6 +14,9 @@ Planned data:
 - fund scale,
 - manager information,
 - holdings and allocation data in later versions.
+- holdings,
+- industry allocation,
+- fee and trading rules.
 
 Limitations:
 
@@ -54,7 +57,7 @@ V1 stores serialized provider responses in SQLite:
 - profile TTL: 12 hours,
 - NAV TTL: 6 hours.
 
-This cache is a local development cache, not a licensed data store. Cached data may include sample or AKShare responses depending on the active provider.
+This cache is a local development cache, not a licensed data store. Cached data may include sample or AKShare responses depending on the active provider. Cache keys include provider namespace.
 
 ## Commercialization Requirement
 

@@ -4,11 +4,13 @@ from typing import List, Optional
 from app.data_providers.akshare_provider import AkshareFundDataProvider
 from app.data_providers.base import FundDataProvider
 from app.data_providers.sample_provider import SampleFundDataProvider
-from app.models import FundProfile, NavPoint
+from app.models import FundFee, FundHolding, FundProfile, IndustryAllocation, NavPoint
 from app.storage.cache import SQLiteCache
 
 PROFILE_TTL_SECONDS = 60 * 60 * 12
 NAV_TTL_SECONDS = 60 * 60 * 6
+HOLDINGS_TTL_SECONDS = 60 * 60 * 24
+FEES_TTL_SECONDS = 60 * 60 * 24
 
 
 class FundService:
@@ -49,6 +51,33 @@ class FundService:
         self.cache.set(cache_key, [point.to_dict() for point in points])
         return points
 
+    def get_holdings(self, code: str) -> List[FundHolding]:
+        cache_key = "%s:holdings:%s" % (self.cache_namespace, code)
+        cached = self.cache.get(cache_key, HOLDINGS_TTL_SECONDS)
+        if cached:
+            return [FundHolding(**item) for item in cached]
+        holdings = self._provider_with_fallback("get_holdings", code)
+        self.cache.set(cache_key, [item.to_dict() for item in holdings])
+        return holdings
+
+    def get_industry_allocation(self, code: str) -> List[IndustryAllocation]:
+        cache_key = "%s:industry:%s" % (self.cache_namespace, code)
+        cached = self.cache.get(cache_key, HOLDINGS_TTL_SECONDS)
+        if cached:
+            return [IndustryAllocation(**item) for item in cached]
+        allocations = self._provider_with_fallback("get_industry_allocation", code)
+        self.cache.set(cache_key, [item.to_dict() for item in allocations])
+        return allocations
+
+    def get_fees(self, code: str) -> List[FundFee]:
+        cache_key = "%s:fees:%s" % (self.cache_namespace, code)
+        cached = self.cache.get(cache_key, FEES_TTL_SECONDS)
+        if cached:
+            return [FundFee(**item) for item in cached]
+        fees = self._provider_with_fallback("get_fees", code)
+        self.cache.set(cache_key, [item.to_dict() for item in fees])
+        return fees
+
     def _get_profile_uncached(self, code: str) -> FundProfile:
         try:
             return self.provider.get_profile(code)
@@ -61,9 +90,15 @@ class FundService:
         except Exception:
             return self.fallback_provider.get_nav_history(code)
 
+    def _provider_with_fallback(self, method_name: str, code: str):
+        try:
+            return getattr(self.provider, method_name)(code)
+        except Exception:
+            return getattr(self.fallback_provider, method_name)(code)
+
 
 def _build_default_provider() -> FundDataProvider:
-    provider_name = os.getenv("FUNDSCOPE_DATA_PROVIDER", "sample").strip().lower()
+    provider_name = os.getenv("FUNDSCOPE_DATA_PROVIDER", "akshare").strip().lower()
     if provider_name == "akshare":
         return AkshareFundDataProvider()
     return SampleFundDataProvider()
