@@ -1,9 +1,10 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from app.agents.fund_discovery import FundDiscoveryWorkflow
 from app.agents.fund_checkup_graph import FundCheckupWorkflow
 from app.services.fund_service import FundService
 from app.services.llm_service import LLMService
@@ -19,11 +20,23 @@ app.add_middleware(
 
 fund_service = FundService()
 workflow = FundCheckupWorkflow(fund_service=fund_service)
+discovery_workflow = FundDiscoveryWorkflow(fund_service=fund_service)
 llm_service = LLMService()
 
 
 class FundCheckupRequest(BaseModel):
     code: str = Field(..., min_length=1, description="Fund code")
+
+
+class FundDiscoveryRequest(BaseModel):
+    goal_text: str = Field("", description="Natural-language investment goal")
+    answers: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Structured questionnaire answers: horizon, risk_tolerance, liquidity_need, experience_level, investment_goal",
+    )
+    include_candidates: bool = Field(False, description="Whether to refine fund type matches into fund candidates")
+    selected_fund_type: str = Field("", description="Fund type selected by the user for candidate refinement")
+    refinement_text: str = Field("", description="Additional refinement requirements")
 
 
 @app.get("/api/health")
@@ -74,6 +87,17 @@ def get_fees(code: str) -> Dict[str, object]:
 @app.post("/api/reports/fund-checkup")
 def create_fund_checkup(request: FundCheckupRequest) -> Dict[str, object]:
     return workflow.run(request.code.strip())
+
+
+@app.post("/api/fund-discovery")
+def create_fund_discovery(request: FundDiscoveryRequest) -> Dict[str, object]:
+    return discovery_workflow.run(
+        request.goal_text.strip(),
+        request.answers or {},
+        include_candidates=request.include_candidates,
+        selected_fund_type=request.selected_fund_type.strip(),
+        refinement_text=request.refinement_text.strip(),
+    )
 
 
 @app.get("/api/llm/health")

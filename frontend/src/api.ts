@@ -93,6 +93,55 @@ export interface LlmHealth {
   usage?: Record<string, unknown>;
 }
 
+export interface InvestorPreferenceProfile {
+  investment_goal: string;
+  horizon: string;
+  risk_tolerance: string;
+  liquidity_need: string;
+  experience_level: string;
+  preferred_fund_types: string[];
+  notes: string[];
+}
+
+export interface FundTypeMatch {
+  fund_type: string;
+  reason: string;
+  unsuitable_for: string;
+  search_keywords: string[];
+}
+
+export interface FundCandidate {
+  code: string;
+  name: string;
+  fund_type: string;
+  reason: string;
+  risk_notes: string[];
+  data_source: string;
+  next_action: string;
+  observation_days: number;
+  annualized_volatility: number | null;
+  max_drawdown: number | null;
+}
+
+export interface FundDiscoveryResponse {
+  stage: string;
+  profile: InvestorPreferenceProfile;
+  fund_type_matches: FundTypeMatch[];
+  candidates: FundCandidate[];
+  clarifying_questions: string[];
+  summary: string;
+  data_notes: string[];
+  compliance_warnings: string[];
+}
+
+export interface FundDiscoveryRequest {
+  goal_text: string;
+  answers: Record<string, string>;
+  include_candidates?: boolean;
+  selected_fund_type?: string;
+  refinement_text?: string;
+}
+
 export async function searchFunds(query: string): Promise<FundProfile[]> {
   const response = await fetch(`/api/funds/search?q=${encodeURIComponent(query)}`);
   if (!response.ok) {
@@ -114,6 +163,22 @@ export async function createFundCheckup(code: string): Promise<FundCheckupReport
   const payload = await response.json();
   if (!payload.fund || !payload.metrics) {
     throw new Error(payload.summary || "体检报告结构不完整");
+  }
+  return payload;
+}
+
+export async function discoverFunds(request: FundDiscoveryRequest): Promise<FundDiscoveryResponse> {
+  const response = await fetch("/api/fund-discovery", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error("候选基金筛选失败");
+  }
+  const payload = await response.json();
+  if (!payload.profile || !Array.isArray(payload.fund_type_matches) || !Array.isArray(payload.candidates)) {
+    throw new Error("候选基金响应结构不完整");
   }
   return payload;
 }

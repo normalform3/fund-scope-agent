@@ -37,11 +37,22 @@ The product should help users understand a fund. It must not directly tell users
 - 适合人群和不适合人群，
 - 合规免责声明。
 
-### Scenario 2: 风险解释
+### Scenario 2: 新手先找候选基金
+
+用户还不知道应该分析哪只基金，先用自然语言和固定问卷描述目标：
+
+- 投资期限，
+- 风险承受能力，
+- 流动性需求，
+- 投资经验。
+
+系统先匹配基金大类，不一上来推荐具体基金。用户选择一个大类并补充进一步要求后，系统再筛出候选观察基金。用户点击候选后进入单只基金体检。候选清单只表示“可进一步研究”，不表示买入建议。
+
+### Scenario 3: 风险解释
 
 用户看到“最大回撤 -49%”时，系统解释该信号意味着历史上可能出现较深净值回撤，不适合无法承受较大波动的保守型用户。
 
-### Scenario 3: 演示稳定性
+### Scenario 4: 演示稳定性
 
 面试或本地演示时，默认 sample provider 不依赖外部网络数据源。需要真实数据探索时，再显式启用 AKShare。
 
@@ -50,6 +61,7 @@ The product should help users understand a fund. It must not directly tell users
 Implemented in current MVP:
 
 - Fund search API.
+- Fund discovery API for pre-checkup candidate selection.
 - Fund profile API.
 - Fund NAV API.
 - Fund checkup report API.
@@ -68,7 +80,7 @@ The current MVP does not include:
 - buy/sell/hold recommendations,
 - fund sales or trading,
 - user account system,
-- real user risk questionnaire,
+- real regulatory suitability questionnaire,
 - portfolio analysis,
 - multi-fund comparison,
 - holdings overlap,
@@ -85,6 +97,11 @@ These may be added later, but only with explicit compliance boundaries.
 ```mermaid
 flowchart TD
   A["Open workbench"] --> B["Input fund code or name"]
+  A --> Q["Answer discovery questions"]
+  Q --> T["Show fund type directions"]
+  T --> R["Add refinement requirements"]
+  R --> K["Show candidate watchlist"]
+  K --> B
   B --> C["Search fund"]
   C --> D["Generate checkup report"]
   D --> E["Show profile and metric cards"]

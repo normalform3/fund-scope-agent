@@ -7,7 +7,11 @@ This document describes the current FundScope Agent architecture and the planned
 ```mermaid
 flowchart LR
   Frontend["Vue 3 Workbench"] --> API["FastAPI"]
+  API --> Discovery["FundDiscoveryWorkflow"]
   API --> Workflow["FundCheckupWorkflow"]
+  Discovery --> FundService["FundService"]
+  Discovery --> DiscoveryRules["Profile and candidate rules"]
+  DiscoveryRules --> DiscoveryCompliance["Compliance wording cleanup"]
   Workflow --> FundService["FundService"]
   FundService --> Cache["SQLiteCache"]
   FundService --> Provider["sample or AKShare provider"]
@@ -21,6 +25,7 @@ flowchart LR
 Current behavior:
 
 - Frontend calls REST APIs.
+- `FundDiscoveryWorkflow` turns user goals and questionnaire answers into a risk preference profile, matched fund categories, and optional refined candidates.
 - Backend uses `FundService` to load profile, NAV, holdings, industry allocation, and fees.
 - `FundCheckupWorkflow` collects profile, NAV, holdings, industry allocation, and fees concurrently to reduce AKShare wait time.
 - `FundService` uses provider-specific cache keys to avoid mixing sample and AKShare data.
@@ -39,6 +44,7 @@ Current UI:
 
 - left workflow rail,
 - top product header and compliance status,
+- separate discovery module with guided risk questions, category directions, and optional candidate refinement,
 - fund input form,
 - visual progress bar and stage list during report generation,
 - fund profile strip,
@@ -98,6 +104,12 @@ backend/app/agents/fund_checkup_graph.py
 ```
 
 Current workflow wrapper. It is intentionally simple and LangGraph-compatible, but not yet a real graph with explicit nodes.
+
+```text
+backend/app/agents/fund_discovery.py
+```
+
+Pre-checkup discovery workflow. It builds an `InvestorPreferenceProfile`, maps it to fund types, searches provider candidates, calculates risk metrics, filters by deterministic risk thresholds, and returns up to 3 candidate funds for further checkup analysis. It must not return buy/sell advice.
 
 ## Provider Data Source Design
 
@@ -166,6 +178,48 @@ Termination condition:
 
 - A report is returned when data collection, metrics, and compliance checks complete.
 - If required data is missing, return a degraded report with `数据不足，暂不评价`.
+
+## Fund Discovery Workflow
+
+Implemented endpoint:
+
+```text
+POST /api/fund-discovery
+```
+
+Purpose:
+
+- help users who do not know a fund code first choose a fund category direction,
+- keep the candidate output as a precursor to the existing single-fund checkup,
+- avoid turning the project into a fund sales or direct recommendation system.
+
+Current flow:
+
+```mermaid
+flowchart TD
+  Goal["goal text + questionnaire"] --> Parse["optional LLM JSON parsing"]
+  Parse --> Profile["validated preference profile"]
+  Profile --> Rules["discovery rules module"]
+  Rules --> TypeMatch["fund type matching"]
+  TypeMatch --> Direction["fund type directions"]
+  Direction --> Refine["selected type + refinement text"]
+  Refine --> Search["provider search + code table recall"]
+  Search --> Metrics["deterministic metrics"]
+  Metrics --> Filter["risk and status filters"]
+  Filter --> Candidates["candidate watchlist"]
+  Candidates --> Compliance["compliance wording cleanup"]
+```
+
+Rules:
+
+- Risk thresholds, fund type mappings, search keywords, name keywords, seed fund codes, and recall limits live in `backend/app/agents/discovery_rules.py`.
+- Natural language can be parsed by the configured text LLM into a small JSON profile. If the model is unavailable or returns invalid JSON, the workflow falls back to deterministic keyword heuristics.
+- LLM output is used only as profile hints. Fund type matching, candidate recall, metric calculation, filtering, ranking, and compliance cleanup remain deterministic.
+- `include_candidates=false` returns only fund type directions; `include_candidates=true` refines a selected direction into candidates.
+- Candidate recall combines fund type search keywords, name keywords, curated seed codes, and provider code-table scanning before deterministic filtering.
+- Candidate filtering uses deterministic code: fund type match, NAV sample length, volatility, maximum drawdown, and purchase status.
+- Output labels use `候选观察` and `可进一步研究`, not direct recommendations.
+- Each candidate links back to the existing fund checkup flow through its code.
 
 ## Metric Calculation Module
 

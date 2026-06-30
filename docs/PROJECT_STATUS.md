@@ -1,10 +1,10 @@
 # Project Status
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
 
 ## Current Phase
 
-MVP scaffold complete. The project now defaults to AKShare real data with sample fallback and can generate a single-fund checkup report.
+MVP scaffold complete. The project now defaults to AKShare real data with sample fallback, can find pre-checkup candidate funds, and can generate a single-fund checkup report.
 
 ## Completed
 
@@ -14,6 +14,7 @@ Backend:
 - CORS configured for local Vite frontend.
 - Health endpoint implemented.
 - Fund search/profile/NAV endpoints implemented.
+- Fund discovery endpoint implemented at `POST /api/fund-discovery`.
 - Single-fund checkup report endpoint implemented.
 - `FundService` coordinates provider access and SQLite cache.
 - Cache keys include provider namespace.
@@ -22,6 +23,9 @@ Backend:
 - Bailian OpenAI-compatible connection test implemented at `GET /api/llm/health`.
 - Report data collection now fetches profile, NAV, holdings, industry allocation, and fees concurrently.
 - Deterministic metric calculator implemented.
+- Discovery rules module implemented for risk thresholds, fund type mappings, search keywords, seed codes, and recall limits.
+- Deterministic preference-to-fund-type mapping, expanded candidate recall, and candidate filtering implemented.
+- Optional LLM JSON profile parsing implemented before deterministic discovery; unavailable or invalid model output degrades to rule parsing.
 - Report generator implemented.
 - Compliance checker implemented.
 
@@ -32,6 +36,7 @@ Frontend:
 - Notion-style workspace UI split into focused Vue components.
 - Frontend progress and chart state extracted into composables.
 - API client and TypeScript types implemented.
+- Fund discovery panel implemented before the direct fund-code checkup flow.
 - ECharts renders NAV, cumulative return, and drawdown charts.
 - Loading, error, empty, report, tab, and metric states implemented.
 - Visual progress bar and staged report generation status implemented.
@@ -61,7 +66,7 @@ Tests and verification:
 
 - Explicit LangGraph node graph.
 - Real LLM report writer.
-- User risk profile questionnaire.
+- Full regulatory suitability questionnaire.
 - Multi-fund comparison.
 - Portfolio analysis.
 - Holdings and industry concentration analysis.
@@ -90,12 +95,24 @@ Tests and verification:
 3. Configure `DASHSCOPE_BASE_URL` and verify `/api/llm/health` against Bailian.
 4. Split `FundCheckupWorkflow` into explicit LangGraph nodes.
 5. Add SSE endpoint for report progress.
-6. Add user risk questionnaire and suitability mapping.
-7. Add fund manager attribution model before implementing manager analysis.
-8. Add API tests with FastAPI `TestClient`.
-9. Consider dynamic imports or manual chunks for ECharts.
+6. Add fund manager attribution model before implementing manager analysis.
+7. Add API tests with FastAPI `TestClient`.
+8. Consider dynamic imports or manual chunks for ECharts.
 
 ## Recent Changes
+
+2026-06-30:
+
+- Added `FundDiscoveryWorkflow` for pre-checkup candidate selection.
+- Added `POST /api/fund-discovery` with structured preference profile, fund type matches, optional candidate refinement, data notes, and compliance warnings.
+- Expanded sample provider with money, bond, index, and 偏股混合 demo candidates.
+- Split the Vue workspace into separate `寻找基金` and `基金分析` modules in the left navigation.
+- Changed discovery UI to recommend fund categories first, then refine candidates after the user adds further requirements.
+- Added discovery tests for structured answers, conservative filtering, high-risk candidates, degraded data, compliance wording, and API shape.
+- Extracted discovery thresholds and fund type mappings into `backend/app/agents/discovery_rules.py`.
+- Expanded candidate recall with search keywords, name keywords, seed fund codes, and provider code-table scanning.
+- Added optional LLM JSON profile parsing while keeping matching, metrics, filtering, and compliance deterministic.
+- Updated README, API, architecture, PRD, compliance, task, and status docs for the new candidate workflow.
 
 2026-06-29:
 

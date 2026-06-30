@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { AlertTriangle } from "@lucide/vue";
 import ChartWorkbench from "./components/ChartWorkbench.vue";
 import DocumentHeader from "./components/DocumentHeader.vue";
+import FundDiscoveryPanel from "./components/FundDiscoveryPanel.vue";
 import FundProfilePanel from "./components/FundProfilePanel.vue";
 import MetricDatabase from "./components/MetricDatabase.vue";
 import ProgressPanel from "./components/ProgressPanel.vue";
@@ -11,9 +12,12 @@ import WorkspaceSidebar from "./components/WorkspaceSidebar.vue";
 import { useReportProgress } from "./composables/useReportProgress";
 import {
   createFundCheckup,
+  discoverFunds,
   fetchNav,
   searchFunds,
   testLlmConnection,
+  type FundDiscoveryRequest,
+  type FundDiscoveryResponse,
   type FundCheckupReport,
   type FundProfile,
   type LlmHealth,
@@ -21,12 +25,20 @@ import {
 } from "./api";
 
 type ReportTab = "report" | "metrics" | "notes";
+type WorkspaceView = "discovery" | "analysis";
+type ThemeMode = "light" | "dark";
 
+const THEME_STORAGE_KEY = "fundscope.theme.v1";
+
+const activeView = ref<WorkspaceView>("discovery");
+const activeTheme = ref<ThemeMode>(readInitialTheme());
 const query = ref("110011");
 const searchResults = ref<FundCheckupReport["fund"][]>([]);
 const report = ref<FundCheckupReport | null>(null);
 const navPoints = ref<NavPoint[]>([]);
 const loading = ref(false);
+const discoveryLoading = ref(false);
+const discovery = ref<FundDiscoveryResponse | null>(null);
 const llmTesting = ref(false);
 const llmStatus = ref<LlmHealth | null>(null);
 const error = ref("");
@@ -58,9 +70,31 @@ const metricCards = computed<string[][]>(() => {
 
 const hasReport = computed(() => Boolean(report.value?.fund && report.value.metrics));
 
+watch(
+  activeTheme,
+  (theme) => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Theme persistence is optional; rendering should continue if storage is unavailable.
+    }
+  },
+  { immediate: true }
+);
+
 onBeforeUnmount(() => {
   stopProgressPulse();
 });
+
+function readInitialTheme(): ThemeMode {
+  try {
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    return storedTheme === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
 
 async function runCheckup() {
   const code = query.value.trim();
@@ -106,12 +140,41 @@ async function runCheckup() {
   }
 }
 
+async function runDiscovery(request: FundDiscoveryRequest) {
+  discoveryLoading.value = true;
+  error.value = "";
+  try {
+    discovery.value = await discoverFunds(request);
+  } catch (currentError) {
+    error.value = currentError instanceof Error ? currentError.message : "候选基金筛选失败";
+  } finally {
+    discoveryLoading.value = false;
+  }
+}
+
+function navigate(view: WorkspaceView) {
+  activeView.value = view;
+}
+
+function toggleTheme() {
+  activeTheme.value = activeTheme.value === "dark" ? "light" : "dark";
+}
+
 async function focusSearch() {
+  activeView.value = "analysis";
   await nextTick();
   documentHeader.value?.focusSearch();
 }
 
+async function runCandidateCheckup(code: string) {
+  activeView.value = "analysis";
+  query.value = code;
+  await nextTick();
+  await runCheckup();
+}
+
 async function runHistoryCheckup(code: string) {
+  activeView.value = "analysis";
   query.value = code;
   await nextTick();
   await runCheckup();
@@ -151,29 +214,51 @@ function addHistoryItem(fund: FundProfile) {
 <template>
   <div class="app-shell">
     <WorkspaceSidebar
+      :active-view="activeView"
+      :active-theme="activeTheme"
       :has-report="hasReport"
       :history-items="historyItems"
-      @activate-search="focusSearch"
+      @navigate="navigate"
       @select-history="runHistoryCheckup"
+      @toggle-theme="toggleTheme"
     />
 
     <main class="workspace-canvas">
-      <DocumentHeader
-        ref="documentHeader"
-        v-model:query="query"
-        :llm-status="llmStatus"
-        :llm-testing="llmTesting"
-        :loading="loading"
-        @submit="runCheckup"
-        @test-llm="runLlmConnectionTest"
-      />
-
       <div v-if="error" class="error-box">
         <AlertTriangle :size="18" />
         {{ error }}
       </div>
 
-      <section class="workspace-grid">
+      <template v-if="activeView === 'discovery'">
+        <header class="document-header">
+          <div class="document-kicker">Fund Discovery</div>
+          <div class="document-title-row">
+            <h1>寻找基金</h1>
+            <span class="document-status">候选观察</span>
+          </div>
+          <p>先根据目标和风险偏好推荐基金大类，再根据进一步要求细化候选基金；候选结果只用于后续研究分析。</p>
+        </header>
+
+        <FundDiscoveryPanel
+          :discovery="discovery"
+          :loading="discoveryLoading"
+          @discover="runDiscovery"
+          @analyze-candidate="runCandidateCheckup"
+        />
+      </template>
+
+      <template v-else>
+        <DocumentHeader
+          ref="documentHeader"
+          v-model:query="query"
+          :llm-status="llmStatus"
+          :llm-testing="llmTesting"
+          :loading="loading"
+          @submit="runCheckup"
+          @test-llm="runLlmConnectionTest"
+        />
+
+        <section class="workspace-grid">
         <div class="workspace-main">
           <ProgressPanel
             :has-report="hasReport"
@@ -203,7 +288,8 @@ function addHistoryItem(fund: FundProfile) {
             <p>{{ report?.summary || '生成报告后，这里会优先显示结论、风险提示和合规边界。' }}</p>
           </section>
         </aside>
-      </section>
+        </section>
+      </template>
     </main>
   </div>
 </template>

@@ -33,7 +33,7 @@ defineExpose({ focusSearch });
 
 <template>
   <header ref="rootEl" class="document-header">
-    <div class="document-kicker">Fund Research Workspace</div>
+    <div class="document-kicker">Fund Analysis Workspace</div>
     <div class="document-title-row">
       <h1>FundScope Agent</h1>
       <div class="header-actions">
@@ -49,7 +49,7 @@ defineExpose({ focusSearch });
         <span v-else class="document-status">MVP Workbench</span>
       </div>
     </div>
-    <p>基金研究与风险匹配助手。输入基金代码后生成结构化体检报告，前端只渲染真实接口返回的数据。</p>
+    <p>基金分析与风险体检助手。输入基金代码后生成结构化体检报告，前端只渲染真实接口返回的数据。</p>
 
     <form class="command-bar" @submit.prevent="$emit('submit')">
       <Search :size="18" />

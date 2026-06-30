@@ -9,6 +9,9 @@ class FundDataProvider(ABC):
     def search_funds(self, query: str) -> List[FundProfile]:
         raise NotImplementedError
 
+    def list_funds(self, limit: int = 100) -> List[FundProfile]:
+        return self.search_funds("")[:limit]
+
     @abstractmethod
     def get_profile(self, code: str) -> FundProfile:
         raise NotImplementedError

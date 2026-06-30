@@ -28,6 +28,11 @@ class AkshareFundDataProvider(FundDataProvider):
             matches = frame.head(20)
         return [self._profile_from_name_row(row) for _, row in matches.iterrows()]
 
+    def list_funds(self, limit: int = 100) -> List[FundProfile]:
+        akshare = _load_akshare()
+        frame = akshare.fund_name_em()
+        return [self._profile_from_name_row(row) for _, row in frame.head(limit).iterrows()]
+
     def get_profile(self, code: str) -> FundProfile:
         profile = self._profile_from_xueqiu(code)
         realtime = self._realtime_row(code)

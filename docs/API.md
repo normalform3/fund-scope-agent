@@ -275,6 +275,106 @@ Response shape:
 }
 ```
 
+## POST /api/fund-discovery
+
+Recommend fund categories first, then optionally refine one category into research candidates before running a single-fund checkup. The endpoint returns fund type directions or a candidate watchlist, not buy/sell advice.
+
+Request:
+
+```json
+{
+  "goal_text": "我是新手，希望稳健一点，一年内可能会用钱。",
+  "answers": {
+    "risk_tolerance": "low",
+    "horizon": "medium",
+    "liquidity_need": "medium",
+    "experience_level": "beginner"
+  },
+  "include_candidates": false
+}
+```
+
+Supported answer values:
+
+- `risk_tolerance`: `low`, `medium`, `high`.
+- `horizon`: `short`, `medium`, `long`.
+- `liquidity_need`: `high`, `medium`, `low`.
+- `experience_level`: `beginner`, `some`, `experienced`.
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/fund-discovery \
+  -H "Content-Type: application/json" \
+  -d '{"goal_text":"我是新手，希望稳健一点","answers":{"risk_tolerance":"low","horizon":"short","liquidity_need":"high"},"include_candidates":false}'
+```
+
+Refinement request:
+
+```json
+{
+  "goal_text": "我是新手，希望稳健一点。",
+  "answers": {
+    "risk_tolerance": "low",
+    "horizon": "short",
+    "liquidity_need": "high"
+  },
+  "include_candidates": true,
+  "selected_fund_type": "货币型 / 短债型",
+  "refinement_text": "希望波动小一点，费用不要太高。"
+}
+```
+
+Response fields:
+
+- `stage`: `type_match` or `candidate_refinement`.
+- `profile`: structured investor preference profile.
+- `fund_type_matches`: matched fund categories and reasons.
+- `candidates`: empty in `type_match`; up to 3 candidate funds in `candidate_refinement`.
+- `clarifying_questions`: optional follow-up questions when intent is incomplete.
+- `summary`: plain-language discovery result.
+- `data_notes`: skipped-candidate, degraded-data, or optional LLM-profile parsing notes.
+- `compliance_warnings`: mandatory disclaimer and compliance notes.
+
+Implementation notes:
+
+- Risk thresholds, fund type mappings, search keywords, name keywords, seed fund codes, and recall limits are kept in the discovery rules module.
+- Candidate recall uses provider search plus provider code-table scanning before applying deterministic NAV, risk, type, and purchase-status filters.
+- When model credentials are configured, natural language may be parsed into JSON profile hints by the text LLM. The LLM does not select, rank, or recommend funds.
+
+Category-first response:
+
+```json
+{
+  "stage": "type_match",
+  "summary": "已根据保守型风险画像推荐基金大类：货币型 / 短债型、债券型。可选择一个方向后继续补充要求，再筛选候选基金。",
+  "fund_type_matches": [
+    {
+      "fund_type": "货币型 / 短债型",
+      "reason": "更重视流动性和低波动，适合作为短期资金的研究起点。"
+    }
+  ],
+  "candidates": []
+}
+```
+
+Candidate entries in `candidate_refinement` include:
+
+```json
+{
+  "code": "003376",
+  "name": "广发中债7-10年国开债指数（示例）",
+  "fund_type": "债券型",
+  "reason": "债券型 与当前基金类型方向较匹配，可作为候选观察对象。",
+  "risk_notes": ["该候选通过当前保守画像的波动和回撤过滤，但仍需查看底层资产风险。"],
+  "data_source": "sample",
+  "next_action": "生成体检报告",
+  "observation_days": 615,
+  "annualized_volatility": 0.0167,
+  "max_drawdown": -0.0312
+}
+```
+
 ## GET /api/llm/health
 
 Test Bailian OpenAI-compatible model connectivity.
@@ -324,7 +424,6 @@ Provider mode affects search/profile/NAV/report responses and cache namespace.
 Not implemented yet:
 
 - `POST /api/reports/fund-checkup/stream`: SSE progress and final report.
-- `POST /api/risk-profile`: user risk questionnaire.
 - `POST /api/funds/compare`: multi-fund comparison.
 - `POST /api/portfolio/analyze`: portfolio analysis.
 - `POST /api/rag/query`: announcement/quarterly report retrieval.

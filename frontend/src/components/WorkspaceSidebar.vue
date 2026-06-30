@@ -1,18 +1,27 @@
 <script setup lang="ts">
 import {
+  Compass,
+  Moon,
   Search,
-  ShieldCheck
+  ShieldCheck,
+  Sun
 } from "@lucide/vue";
 import type { FundProfile } from "../api";
 
+type WorkspaceView = "discovery" | "analysis";
+type ThemeMode = "light" | "dark";
+
 defineProps<{
+  activeView: WorkspaceView;
+  activeTheme: ThemeMode;
   hasReport: boolean;
   historyItems: FundProfile[];
 }>();
 
 defineEmits<{
-  activateSearch: [];
+  navigate: [view: WorkspaceView];
   selectHistory: [code: string];
+  toggleTheme: [];
 }>();
 </script>
 
@@ -28,12 +37,20 @@ defineEmits<{
 
     <nav class="page-nav" aria-label="工作区导航">
       <button
-        class="page-nav-item active"
+        :class="['page-nav-item', activeView === 'discovery' ? 'active' : '']"
         type="button"
-        @click="$emit('activateSearch')"
+        @click="$emit('navigate', 'discovery')"
+      >
+        <Compass :size="16" />
+        <span>寻找基金</span>
+      </button>
+      <button
+        :class="['page-nav-item', activeView === 'analysis' ? 'active' : '']"
+        type="button"
+        @click="$emit('navigate', 'analysis')"
       >
         <Search :size="16" />
-        <span>基金检索</span>
+        <span>基金分析</span>
       </button>
     </nav>
 
@@ -60,6 +77,17 @@ defineEmits<{
         <strong>{{ hasReport ? '报告已生成' : '等待输入基金代码' }}</strong>
         <span>仅供研究参考，不构成投资建议。</span>
       </div>
+    </div>
+
+    <div class="sidebar-section theme-section">
+      <span class="sidebar-label">Appearance</span>
+      <button class="theme-toggle" type="button" @click="$emit('toggleTheme')">
+        <span class="theme-toggle-icon">
+          <Sun v-if="activeTheme === 'dark'" :size="15" />
+          <Moon v-else :size="15" />
+        </span>
+        <span>{{ activeTheme === 'dark' ? '切换浅色模式' : '切换深色模式' }}</span>
+      </button>
     </div>
 
     <div class="sidebar-footer">

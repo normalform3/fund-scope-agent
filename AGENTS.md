@@ -15,6 +15,7 @@ Implemented:
 - FastAPI backend.
 - Vue + ECharts frontend workbench.
 - sample and AKShare data providers.
+- pre-checkup fund discovery with lightweight risk preference questions.
 - AKShare real profile, NAV, holdings, industry allocation, and fee mapping.
 - SQLite cache.
 - deterministic metric calculator.
@@ -27,7 +28,8 @@ Not implemented yet:
 
 - real LangGraph node graph.
 - online LLM report writer.
-- user risk profile.
+- full regulatory suitability questionnaire.
+- online LLM preference parser.
 - multi-fund comparison.
 - holdings/fund manager analysis.
 - announcement RAG.

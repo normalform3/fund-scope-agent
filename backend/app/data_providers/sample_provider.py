@@ -47,6 +47,78 @@ class SampleFundDataProvider(FundDataProvider):
                 rating="示例数据",
                 data_source="sample",
             ),
+            "000198": FundProfile(
+                code="000198",
+                name="天弘余额宝货币（示例）",
+                fund_type="货币型",
+                inception_date="2013-05-29",
+                manager="示例基金经理",
+                company="天弘基金（示例）",
+                scale="约 6000 亿元（示例数据）",
+                purchase_status="开放申购",
+                redeem_status="开放赎回",
+                fee_note="费率以基金公司公告为准",
+                benchmark="活期存款利率（税后）",
+                investment_objective="示例：在控制流动性风险的前提下追求稳定收益。",
+                investment_strategy="示例：投资于短期货币市场工具。",
+                custodian="示例托管银行",
+                rating="示例数据",
+                data_source="sample",
+            ),
+            "003376": FundProfile(
+                code="003376",
+                name="广发中债7-10年国开债指数（示例）",
+                fund_type="债券型",
+                inception_date="2016-09-26",
+                manager="示例基金经理",
+                company="广发基金（示例）",
+                scale="约 55 亿元（示例数据）",
+                purchase_status="开放申购",
+                redeem_status="开放赎回",
+                fee_note="费率以基金公司公告为准",
+                benchmark="中债-7-10年国开行债券指数收益率",
+                investment_objective="示例：力争跟踪债券指数表现。",
+                investment_strategy="示例：主要投资政策性金融债。",
+                custodian="示例托管银行",
+                rating="示例数据",
+                data_source="sample",
+            ),
+            "110020": FundProfile(
+                code="110020",
+                name="易方达沪深300ETF联接（示例）",
+                fund_type="指数型",
+                inception_date="2009-08-26",
+                manager="示例基金经理",
+                company="易方达基金（示例）",
+                scale="约 210 亿元（示例数据）",
+                purchase_status="开放申购",
+                redeem_status="开放赎回",
+                fee_note="费率以基金公司公告为准",
+                benchmark="沪深300指数收益率 * 95% + 活期存款利率 * 5%",
+                investment_objective="示例：紧密跟踪沪深300指数表现。",
+                investment_strategy="示例：通过目标 ETF 获取宽基指数敞口。",
+                custodian="示例托管银行",
+                rating="示例数据",
+                data_source="sample",
+            ),
+            "005827": FundProfile(
+                code="005827",
+                name="易方达蓝筹精选混合（示例）",
+                fund_type="偏股混合型",
+                inception_date="2018-09-05",
+                manager="示例基金经理",
+                company="易方达基金（示例）",
+                scale="约 430 亿元（示例数据）",
+                purchase_status="开放申购",
+                redeem_status="开放赎回",
+                fee_note="费率以基金公司公告为准",
+                benchmark="沪深300指数收益率 * 70% + 恒生指数收益率 * 20% + 中债指数收益率 * 10%",
+                investment_objective="示例：通过权益资产精选追求长期增值。",
+                investment_strategy="示例：精选具有竞争优势的权益资产。",
+                custodian="示例托管银行",
+                rating="示例数据",
+                data_source="sample",
+            ),
         }
 
     def search_funds(self, query: str) -> List[FundProfile]:
@@ -59,6 +131,9 @@ class SampleFundDataProvider(FundDataProvider):
             if normalized in profile.code.lower() or normalized in profile.name.lower()
         ]
 
+    def list_funds(self, limit: int = 100) -> List[FundProfile]:
+        return list(self._profiles.values())[:limit]
+
     def get_profile(self, code: str) -> FundProfile:
         if code not in self._profiles:
             raise LookupError("未找到基金档案")
@@ -67,7 +142,7 @@ class SampleFundDataProvider(FundDataProvider):
     def get_nav_history(self, code: str) -> List[NavPoint]:
         if code not in self._profiles:
             raise LookupError("未找到基金净值")
-        return _build_sample_nav(seed=0 if code == "110011" else 7)
+        return _build_sample_nav(*_sample_nav_profile(code))
 
     def get_holdings(self, code: str) -> List[FundHolding]:
         if code not in self._profiles:
@@ -98,7 +173,19 @@ class SampleFundDataProvider(FundDataProvider):
         ]
 
 
-def _build_sample_nav(seed: int) -> List[NavPoint]:
+def _sample_nav_profile(code: str):
+    profiles = {
+        "000198": (2, 0.00008, 0.00035, 0.0),
+        "003376": (4, 0.00016, 0.0012, -0.002),
+        "110020": (6, 0.00028, 0.0032, -0.006),
+        "005827": (8, 0.00036, 0.0048, -0.009),
+        "000001": (7, 0.00032, 0.0042, -0.008),
+        "110011": (0, 0.00035, 0.0040, -0.012),
+    }
+    return profiles.get(code, (5, 0.00025, 0.0030, -0.006))
+
+
+def _build_sample_nav(seed: int, trend: float, cycle_scale: float, shock_scale: float) -> List[NavPoint]:
     start = date(2021, 1, 4)
     points: List[NavPoint] = []
     value = 1.0 + seed * 0.01
@@ -106,10 +193,9 @@ def _build_sample_nav(seed: int) -> List[NavPoint]:
         current = start + timedelta(days=day)
         if current.weekday() >= 5:
             continue
-        trend = 0.00035
-        cycle = math.sin((day + seed) / 27) * 0.004
-        shock = -0.012 if 340 < day < 410 else 0.0
-        rebound = 0.009 if 520 < day < 590 else 0.0
+        cycle = math.sin((day + seed) / 27) * cycle_scale
+        shock = shock_scale if 340 < day < 410 else 0.0
+        rebound = abs(shock_scale) * 0.72 if 520 < day < 590 else 0.0
         value = max(0.5, value * (1 + trend + cycle + shock + rebound))
         points.append(
             NavPoint(

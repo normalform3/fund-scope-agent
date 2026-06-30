@@ -36,6 +36,9 @@ FundScope Agent is a research reference tool. It must not act as a fund sales or
 - Do not rank a fund as best unless the ranking is backed by explicit same-category data.
 - Do not imply future certainty from past performance.
 - Do not direct users to buy, sell, redeem, subscribe, or hold.
+- Discovery output must use candidate language such as `候选观察` or `可进一步研究`.
+- Discovery output must not say a candidate is the best or most suitable fund for the user.
+- A discovery candidate must link to further checkup analysis instead of acting as a final investment decision.
 
 ## Implementation
 
@@ -43,3 +46,4 @@ Compliance logic lives in `backend/app/compliance/checker.py`.
 
 Any future LLM report generation must run through `enforce_report_compliance` before returning to the user.
 
+Fund discovery also sanitizes generated profile, type-match, and candidate wording before returning from `POST /api/fund-discovery`.

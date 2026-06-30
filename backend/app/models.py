@@ -99,3 +99,45 @@ class RiskMetrics:
         payload = asdict(self)
         payload["drawdown_series"] = [point.to_dict() for point in self.drawdown_series]
         return payload
+
+
+@dataclass(frozen=True)
+class InvestorPreferenceProfile:
+    investment_goal: str
+    horizon: str
+    risk_tolerance: str
+    liquidity_need: str
+    experience_level: str
+    preferred_fund_types: List[str]
+    notes: List[str]
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FundTypeMatch:
+    fund_type: str
+    reason: str
+    unsuitable_for: str
+    search_keywords: List[str]
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FundCandidate:
+    code: str
+    name: str
+    fund_type: str
+    reason: str
+    risk_notes: List[str]
+    data_source: str
+    next_action: str
+    observation_days: int
+    annualized_volatility: Optional[float]
+    max_drawdown: Optional[float]
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)

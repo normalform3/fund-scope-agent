@@ -23,6 +23,7 @@
 
 - [x] `GET /api/health`.
 - [x] `GET /api/funds/search`.
+- [x] `POST /api/fund-discovery`.
 - [x] `GET /api/funds/{code}/profile`.
 - [x] `GET /api/funds/{code}/nav`.
 - [x] `POST /api/reports/fund-checkup`.
@@ -35,6 +36,7 @@
 
 ## M3 Frontend Workbench
 
+- [x] Discovery questionnaire and candidate watchlist.
 - [x] Search/input panel.
 - [x] Profile strip.
 - [x] Metric cards.
@@ -45,7 +47,19 @@
 - [ ] Browser verification after dependencies are installed.
 - [ ] Add screenshot to README.
 
-## M4 Portfolio Packaging
+## M4 Discovery and Suitability
+
+- [x] Lightweight preference profile from goal text and fixed answers.
+- [x] Fund type matching for money, bond, index, mixed, and theme directions.
+- [x] Discovery rules module for thresholds, mappings, search keywords, and seed codes.
+- [x] Expanded candidate recall from provider search and code table scanning.
+- [x] Deterministic candidate filtering by type, NAV sample length, volatility, drawdown, and purchase status.
+- [x] Optional LLM JSON structured extraction for user intent before deterministic filtering.
+- [x] Compliance-safe candidate wording.
+- [ ] Full regulatory suitability questionnaire.
+- [ ] Same-category ranking with licensed or recorded comparable data.
+
+## M5 Portfolio Packaging
 
 - [ ] Add demo script.
 - [ ] Add example report JSON.

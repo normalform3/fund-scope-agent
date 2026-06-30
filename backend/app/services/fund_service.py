@@ -31,6 +31,12 @@ class FundService:
         except Exception:
             return self.fallback_provider.search_funds(query)
 
+    def list_funds(self, limit: int = 100) -> List[FundProfile]:
+        try:
+            return self.provider.list_funds(limit)
+        except Exception:
+            return self.fallback_provider.list_funds(limit)
+
     def get_profile(self, code: str) -> FundProfile:
         cache_key = "%s:profile:%s" % (self.cache_namespace, code)
         cached = self.cache.get(cache_key, PROFILE_TTL_SECONDS)

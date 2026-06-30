@@ -28,6 +28,15 @@ export function useFundCharts(args: {
   let navChart: echarts.ECharts | null = null;
   let returnChart: echarts.ECharts | null = null;
   let drawdownChart: echarts.ECharts | null = null;
+  let themeObserver: MutationObserver | null = null;
+
+  if (typeof MutationObserver !== "undefined") {
+    themeObserver = new MutationObserver(() => {
+      renderCharts();
+      resizeCharts();
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
 
   watch([args.navPoints, args.report], async () => {
     await nextTick();
@@ -68,46 +77,47 @@ export function useFundCharts(args: {
       return Number(((value / peak - 1) * 100).toFixed(2));
     });
 
+    const theme = getChartTheme();
     const commonGrid = { left: 46, right: 18, top: 22, bottom: 28 };
     const commonTooltip = {
       trigger: "axis",
-      backgroundColor: "rgba(33, 49, 63, 0.94)",
-      borderColor: "rgba(255, 255, 255, 0.08)",
-      textStyle: { color: "#f7fafb", fontSize: 12 },
-      axisPointer: { lineStyle: { color: "#4ea8de", width: 1 } }
+      backgroundColor: theme.tooltipBackground,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12 },
+      axisPointer: { lineStyle: { color: theme.accent, width: 1 } }
     };
     const categoryAxis = {
       type: "category",
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: "#d9e3e8" } },
+      axisLine: { lineStyle: { color: theme.axis } },
       axisLabel: { show: false }
     };
     const valueAxis = {
       type: "value",
       scale: true,
-      splitLine: { lineStyle: { color: "#e7eef1", type: "dashed" } },
-      axisLabel: { color: "#64717c", fontSize: 11 }
+      splitLine: { lineStyle: { color: theme.splitLine, type: "dashed" } },
+      axisLabel: { color: theme.mutedText, fontSize: 11 }
     };
 
     navChart.setOption({
       grid: commonGrid,
       xAxis: { ...categoryAxis, data: dates },
       yAxis: valueAxis,
-      series: [{ type: "line", data: nav, smooth: true, showSymbol: false, lineStyle: { color: "#4ea8de", width: 2.3 }, emphasis: { focus: "series" } }],
+      series: [{ type: "line", data: nav, smooth: true, showSymbol: false, lineStyle: { color: theme.accent, width: 2.3 }, emphasis: { focus: "series" } }],
       tooltip: commonTooltip
     });
     returnChart.setOption({
       grid: commonGrid,
       xAxis: { ...categoryAxis, data: dates },
-      yAxis: { ...valueAxis, axisLabel: { formatter: "{value}%", color: "#64717c", fontSize: 11 } },
-      series: [{ type: "line", data: cumulativeReturn, smooth: true, showSymbol: false, areaStyle: { color: "rgba(40, 199, 183, 0.12)" }, lineStyle: { color: "#28c7b7", width: 2.3 }, emphasis: { focus: "series" } }],
+      yAxis: { ...valueAxis, axisLabel: { formatter: "{value}%", color: theme.mutedText, fontSize: 11 } },
+      series: [{ type: "line", data: cumulativeReturn, smooth: true, showSymbol: false, areaStyle: { color: theme.tealArea }, lineStyle: { color: theme.teal, width: 2.3 }, emphasis: { focus: "series" } }],
       tooltip: commonTooltip
     });
     drawdownChart.setOption({
       grid: commonGrid,
       xAxis: { ...categoryAxis, data: dates },
-      yAxis: { ...valueAxis, axisLabel: { formatter: "{value}%", color: "#64717c", fontSize: 11 } },
-      series: [{ type: "line", data: drawdown, smooth: true, showSymbol: false, areaStyle: { color: "rgba(176, 109, 52, 0.12)" }, lineStyle: { color: "#b06d34", width: 2.3 }, emphasis: { focus: "series" } }],
+      yAxis: { ...valueAxis, axisLabel: { formatter: "{value}%", color: theme.mutedText, fontSize: 11 } },
+      series: [{ type: "line", data: drawdown, smooth: true, showSymbol: false, areaStyle: { color: theme.warningArea }, lineStyle: { color: theme.warning, width: 2.3 }, emphasis: { focus: "series" } }],
       tooltip: commonTooltip
     });
   }
@@ -119,9 +129,11 @@ export function useFundCharts(args: {
   }
 
   function disposeCharts() {
+    themeObserver?.disconnect();
     navChart?.dispose();
     returnChart?.dispose();
     drawdownChart?.dispose();
+    themeObserver = null;
     navChart = null;
     returnChart = null;
     drawdownChart = null;
@@ -135,6 +147,25 @@ export function useFundCharts(args: {
     renderCharts,
     resizeCharts,
     disposeCharts
+  };
+}
+
+function getChartTheme() {
+  const style = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  const theme = document.documentElement.dataset.theme;
+  return {
+    accent: read("--accent", "#5c6ad2"),
+    teal: read("--teal", "#18b8a7"),
+    warning: read("--warning", "#b8782f"),
+    axis: read("--border-strong", "rgba(34, 39, 53, 0.18)"),
+    splitLine: read("--border", "rgba(34, 39, 53, 0.1)"),
+    mutedText: read("--muted-text", "#68707f"),
+    tooltipBackground: theme === "dark" ? "rgba(10, 11, 16, 0.96)" : "rgba(23, 25, 31, 0.95)",
+    tooltipBorder: read("--border-strong", "rgba(236, 239, 247, 0.18)"),
+    tooltipText: "#f7f8fb",
+    tealArea: theme === "dark" ? "rgba(43, 208, 188, 0.16)" : "rgba(24, 184, 167, 0.12)",
+    warningArea: theme === "dark" ? "rgba(225, 163, 91, 0.16)" : "rgba(184, 120, 47, 0.12)"
   };
 }
 
