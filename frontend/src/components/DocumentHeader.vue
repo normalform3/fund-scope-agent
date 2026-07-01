@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Loader2, Search, Wifi } from "@lucide/vue";
+import { Loader2, Search } from "@lucide/vue";
 import type { LlmHealth } from "../api";
 
 defineProps<{
   query: string;
   loading: boolean;
   llmStatus: LlmHealth | null;
-  llmTesting: boolean;
 }>();
 
 const emit = defineEmits<{
   "update:query": [value: string];
   submit: [];
-  testLlm: [];
 }>();
 
 const searchInputEl = ref<HTMLInputElement | null>(null);
@@ -37,11 +35,6 @@ defineExpose({ focusSearch });
     <div class="document-title-row">
       <h1>FundScope Agent</h1>
       <div class="header-actions">
-        <button class="header-model-test" type="button" :disabled="llmTesting" @click="$emit('testLlm')">
-          <Loader2 v-if="llmTesting" class="spin" :size="15" />
-          <Wifi v-else :size="15" />
-          测试模型连接
-        </button>
         <div v-if="llmStatus" :class="['header-model-status', llmStatus.ok ? 'ok' : 'failed']">
           <strong>{{ llmStatus.ok ? '模型可用' : '模型不可用' }}</strong>
           <span>{{ llmStatus.model }} · {{ llmStatus.message }}</span>

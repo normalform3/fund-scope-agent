@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
 
@@ -110,6 +110,10 @@ class InvestorPreferenceProfile:
     experience_level: str
     preferred_fund_types: List[str]
     notes: List[str]
+    max_loss_tolerance: Optional[float] = None
+    investment_horizon_months: Optional[int] = None
+    can_delay_use: Optional[bool] = None
+    money_purpose: str = ""
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
@@ -121,6 +125,10 @@ class FundTypeMatch:
     reason: str
     unsuitable_for: str
     search_keywords: List[str]
+    fit_score: float = 0.0
+    basis: List[str] = field(default_factory=list)
+    risk_flags: List[str] = field(default_factory=list)
+    missing_context: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
@@ -138,6 +146,7 @@ class FundCandidate:
     observation_days: int
     annualized_volatility: Optional[float]
     max_drawdown: Optional[float]
+    basis: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)

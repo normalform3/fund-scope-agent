@@ -14,14 +14,17 @@ import {
   createFundCheckup,
   discoverFunds,
   fetchNav,
+  fetchPeerComparison,
   searchFunds,
   testLlmConnection,
   type FundDiscoveryRequest,
   type FundDiscoveryResponse,
   type FundCheckupReport,
   type FundProfile,
+  type PeerComparisonResponse,
   type LlmHealth,
-  type NavPoint
+  type NavPoint,
+  type UserRiskProfile
 } from "./api";
 
 type ReportTab = "report" | "metrics" | "notes";
@@ -36,6 +39,9 @@ const query = ref("110011");
 const searchResults = ref<FundCheckupReport["fund"][]>([]);
 const report = ref<FundCheckupReport | null>(null);
 const navPoints = ref<NavPoint[]>([]);
+const peerComparison = ref<PeerComparisonResponse | null>(null);
+const peerComparisonLoading = ref(false);
+const peerComparisonError = ref("");
 const loading = ref(false);
 const discoveryLoading = ref(false);
 const discovery = ref<FundDiscoveryResponse | null>(null);
@@ -96,7 +102,7 @@ function readInitialTheme(): ThemeMode {
   }
 }
 
-async function runCheckup() {
+async function runCheckup(riskProfile?: UserRiskProfile) {
   const code = query.value.trim();
   if (!code) {
     error.value = "请输入基金代码或名称。";
@@ -107,6 +113,8 @@ async function runCheckup() {
   error.value = "";
   report.value = null;
   navPoints.value = [];
+  peerComparison.value = null;
+  peerComparisonError.value = "";
   resetProgress();
 
   try {
@@ -118,13 +126,14 @@ async function runCheckup() {
 
     setProgress("collect", "active", 34, "正在采集 AKShare 档案、净值、持仓、行业和费率");
     startProgressPulse(78);
-    report.value = await createFundCheckup(selectedCode);
+    report.value = await createFundCheckup(selectedCode, riskProfile);
     stopProgressPulse();
 
     setProgress("collect", "complete", 80, "真实数据采集完成");
     setProgress("report", "complete", 88, "风险指标和体检报告已生成");
-    setProgress("charts", "active", 92, "正在加载图表净值数据");
+    setProgress("charts", "active", 92, "正在加载图表净值和同类位置");
     navPoints.value = await fetchNav(selectedCode);
+    await loadPeerComparison(selectedCode);
     query.value = selectedCode;
     selectedTab.value = "report";
     addHistoryItem(report.value.fund);
@@ -137,6 +146,19 @@ async function runCheckup() {
   } finally {
     stopProgressPulse();
     loading.value = false;
+  }
+}
+
+async function loadPeerComparison(code: string) {
+  peerComparisonLoading.value = true;
+  peerComparisonError.value = "";
+  try {
+    peerComparison.value = await fetchPeerComparison(code);
+  } catch (currentError) {
+    peerComparison.value = null;
+    peerComparisonError.value = currentError instanceof Error ? currentError.message : "同类比较获取失败";
+  } finally {
+    peerComparisonLoading.value = false;
   }
 }
 
@@ -166,11 +188,11 @@ async function focusSearch() {
   documentHeader.value?.focusSearch();
 }
 
-async function runCandidateCheckup(code: string) {
+async function runCandidateCheckup(code: string, riskProfile: UserRiskProfile) {
   activeView.value = "analysis";
   query.value = code;
   await nextTick();
-  await runCheckup();
+  await runCheckup(riskProfile);
 }
 
 async function runHistoryCheckup(code: string) {
@@ -218,8 +240,11 @@ function addHistoryItem(fund: FundProfile) {
       :active-theme="activeTheme"
       :has-report="hasReport"
       :history-items="historyItems"
+      :llm-status="llmStatus"
+      :llm-testing="llmTesting"
       @navigate="navigate"
       @select-history="runHistoryCheckup"
+      @test-llm="runLlmConnectionTest"
       @toggle-theme="toggleTheme"
     />
 
@@ -252,10 +277,8 @@ function addHistoryItem(fund: FundProfile) {
           ref="documentHeader"
           v-model:query="query"
           :llm-status="llmStatus"
-          :llm-testing="llmTesting"
           :loading="loading"
           @submit="runCheckup"
-          @test-llm="runLlmConnectionTest"
         />
 
         <section class="workspace-grid">
@@ -272,6 +295,9 @@ function addHistoryItem(fund: FundProfile) {
           <div ref="reportPaneEl">
             <ReportDocument
               v-model:selected-tab="selectedTab"
+              :peer-comparison="peerComparison"
+              :peer-comparison-error="peerComparisonError"
+              :peer-comparison-loading="peerComparisonLoading"
               :report="report"
             />
           </div>

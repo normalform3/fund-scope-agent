@@ -24,6 +24,11 @@ Limitations:
 - Data refresh timing is not guaranteed by this project.
 - AKShare usage is for academic research and learning, not commercial operation.
 
+Recorded provider fixtures live under `tests/fixtures/akshare/`. They preserve
+known AKShare table shapes for profile, NAV, holdings, industry allocation, and
+fee mapping tests. These fixtures verify FundScope's deterministic field
+mapping logic, not live AKShare availability, freshness, or licensing status.
+
 ## Tushare
 
 Reserved as an optional provider for:
@@ -58,6 +63,11 @@ V1 stores serialized provider responses in SQLite:
 - NAV TTL: 6 hours.
 
 This cache is a local development cache, not a licensed data store. Cached data may include sample or AKShare responses depending on the active provider. Cache keys include provider namespace.
+Report responses expose cache and fallback use through `data_quality.status`.
+For example, `cached` means the section came from the local SQLite cache, while
+`fallback` means the primary provider failed and the fallback provider returned
+usable data. These states are research transparency signals, not guarantees of
+freshness or completeness.
 
 ## Commercialization Requirement
 

@@ -55,10 +55,7 @@ def enforce_report_compliance(report: Dict[str, object]) -> Dict[str, object]:
         checked["conclusion"] = "数据不足，暂不评价"
 
     for key, value in list(checked.items()):
-        if isinstance(value, str):
-            checked[key] = sanitize_text(value)
-        elif isinstance(value, list):
-            checked[key] = [sanitize_text(str(item)) for item in value]
+        checked[key] = _sanitize_value(value)
 
     warnings = list(_as_list(checked.get("compliance_warnings")))
     text = _flatten_report_text(checked)
@@ -73,13 +70,33 @@ def enforce_report_compliance(report: Dict[str, object]) -> Dict[str, object]:
 
 
 def _flatten_report_text(report: Dict[str, object]) -> str:
-    parts: List[str] = []
-    for value in report.values():
-        if isinstance(value, str):
-            parts.append(value)
-        elif isinstance(value, list):
-            parts.extend(str(item) for item in value)
-    return "\n".join(parts)
+    return "\n".join(_flatten_value(report))
+
+
+def _sanitize_value(value: object) -> object:
+    if isinstance(value, str):
+        return sanitize_text(value)
+    if isinstance(value, list):
+        return [_sanitize_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _sanitize_value(item) for key, item in value.items()}
+    return value
+
+
+def _flatten_value(value: object) -> List[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        parts: List[str] = []
+        for item in value:
+            parts.extend(_flatten_value(item))
+        return parts
+    if isinstance(value, dict):
+        parts = []
+        for item in value.values():
+            parts.extend(_flatten_value(item))
+        return parts
+    return []
 
 
 def _as_list(value: object) -> Iterable[str]:
@@ -88,4 +105,3 @@ def _as_list(value: object) -> Iterable[str]:
     if isinstance(value, list):
         return [str(item) for item in value]
     return [str(value)]
-

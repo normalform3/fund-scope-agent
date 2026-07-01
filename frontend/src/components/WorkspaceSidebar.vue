@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {
   Compass,
+  Loader2,
   Moon,
   Search,
-  ShieldCheck,
-  Sun
+  Sun,
+  Wifi
 } from "@lucide/vue";
-import type { FundProfile } from "../api";
+import type { FundProfile, LlmHealth } from "../api";
 
 type WorkspaceView = "discovery" | "analysis";
 type ThemeMode = "light" | "dark";
@@ -16,11 +17,14 @@ defineProps<{
   activeTheme: ThemeMode;
   hasReport: boolean;
   historyItems: FundProfile[];
+  llmStatus: LlmHealth | null;
+  llmTesting: boolean;
 }>();
 
 defineEmits<{
   navigate: [view: WorkspaceView];
   selectHistory: [code: string];
+  testLlm: [];
   toggleTheme: [];
 }>();
 </script>
@@ -79,20 +83,30 @@ defineEmits<{
       </div>
     </div>
 
-    <div class="sidebar-section theme-section">
-      <span class="sidebar-label">Appearance</span>
-      <button class="theme-toggle" type="button" @click="$emit('toggleTheme')">
-        <span class="theme-toggle-icon">
-          <Sun v-if="activeTheme === 'dark'" :size="15" />
-          <Moon v-else :size="15" />
-        </span>
-        <span>{{ activeTheme === 'dark' ? '切换浅色模式' : '切换深色模式' }}</span>
+    <div class="sidebar-actions" aria-label="侧栏工具">
+      <button
+        class="icon-action"
+        type="button"
+        :aria-label="activeTheme === 'dark' ? '切换浅色模式' : '切换深色模式'"
+        :data-tooltip="activeTheme === 'dark' ? '切换浅色模式' : '切换深色模式'"
+        :title="activeTheme === 'dark' ? '切换浅色模式' : '切换深色模式'"
+        @click="$emit('toggleTheme')"
+      >
+        <Sun v-if="activeTheme === 'dark'" :size="16" />
+        <Moon v-else :size="16" />
       </button>
-    </div>
-
-    <div class="sidebar-footer">
-      <ShieldCheck :size="15" />
-      <span>合规口径已启用</span>
+      <button
+        :class="['icon-action', llmStatus?.ok ? 'ok' : '', llmStatus && !llmStatus.ok ? 'failed' : '']"
+        type="button"
+        aria-label="测试模型连接"
+        :data-tooltip="llmTesting ? '正在测试模型连接' : '测试模型连接'"
+        :disabled="llmTesting"
+        :title="llmTesting ? '正在测试模型连接' : '测试模型连接'"
+        @click="$emit('testLlm')"
+      >
+        <Loader2 v-if="llmTesting" class="spin" :size="16" />
+        <Wifi v-else :size="16" />
+      </button>
     </div>
   </aside>
 </template>

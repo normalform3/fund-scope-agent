@@ -67,6 +67,51 @@ export interface FundFee {
   value: string;
 }
 
+export interface RiskExplanationItem {
+  key: string;
+  title: string;
+  level: string;
+  metric_label: string;
+  metric_value: number | null;
+  explanation: string;
+  user_meaning: string;
+}
+
+export interface UserRiskProfile {
+  risk_tolerance: string;
+  horizon: string;
+  liquidity_need: string;
+  max_loss_tolerance?: number | null;
+  investment_horizon_months?: number | null;
+  can_delay_use?: boolean | null;
+  money_purpose?: string | null;
+}
+
+export interface RiskProfileAssessment {
+  status: string;
+  fit_level: string;
+  profile: Record<string, unknown>;
+  reasons: string[];
+  risk_flags: string[];
+}
+
+export interface WorkflowTraceItem {
+  stage: string;
+  label: string;
+  status: string;
+  message: string;
+  item_count?: number;
+}
+
+export interface DataQualityItem {
+  section: string;
+  label: string;
+  status: string;
+  item_count: number;
+  source: string;
+  note: string;
+}
+
 export interface FundCheckupReport {
   fund: FundProfile;
   conclusion: string;
@@ -75,11 +120,15 @@ export interface FundCheckupReport {
   holdings: FundHolding[];
   industry_allocation: IndustryAllocation[];
   fees: FundFee[];
+  risk_explanation: RiskExplanationItem[];
+  risk_profile_assessment: RiskProfileAssessment;
   risk_notes: string[];
   holding_notes: string[];
   suitable_for: string[];
   unsuitable_for: string[];
   data_notes: string[];
+  data_quality: DataQualityItem[];
+  workflow_trace: WorkflowTraceItem[];
   llm_commentary: string;
   compliance_warnings: string[];
   errors?: string[];
@@ -101,6 +150,10 @@ export interface InvestorPreferenceProfile {
   experience_level: string;
   preferred_fund_types: string[];
   notes: string[];
+  max_loss_tolerance: number | null;
+  investment_horizon_months: number | null;
+  can_delay_use: boolean | null;
+  money_purpose: string;
 }
 
 export interface FundTypeMatch {
@@ -108,6 +161,10 @@ export interface FundTypeMatch {
   reason: string;
   unsuitable_for: string;
   search_keywords: string[];
+  fit_score: number;
+  basis: string[];
+  risk_flags: string[];
+  missing_context: string[];
 }
 
 export interface FundCandidate {
@@ -121,6 +178,68 @@ export interface FundCandidate {
   observation_days: number;
   annualized_volatility: number | null;
   max_drawdown: number | null;
+  basis: string[];
+}
+
+export interface FundComparisonItem {
+  code: string;
+  name: string;
+  fund_type: string;
+  data_source: string;
+  is_target: boolean;
+  observation_days: number;
+  total_return: number | null;
+  annualized_return: number | null;
+  annualized_volatility: number | null;
+  max_drawdown: number | null;
+  sharpe_ratio: number | null;
+  warnings: string[];
+}
+
+export interface FundComparisonRankingItem {
+  rank: number;
+  code: string;
+  name: string;
+  value: number | null;
+}
+
+export interface FundComparisonRanking {
+  direction: string;
+  count: number;
+  items: FundComparisonRankingItem[];
+}
+
+export interface FundComparisonResponse {
+  watchlist: {
+    codes: string[];
+    persistence: string;
+    note: string;
+  };
+  items: FundComparisonItem[];
+  rankings: Record<string, FundComparisonRanking>;
+  data_notes: string[];
+  compliance_warnings: string[];
+}
+
+export interface PeerComparisonRank {
+  rank: number | null;
+  count: number;
+  percentile: number | null;
+  direction: string;
+  note: string;
+}
+
+export interface PeerComparisonResponse {
+  target: FundProfile;
+  category: {
+    fund_type: string;
+    bucket: string;
+    matching_rule: string;
+  };
+  items: FundComparisonItem[];
+  ranks: Record<string, PeerComparisonRank>;
+  data_notes: string[];
+  compliance_warnings: string[];
 }
 
 export interface FundDiscoveryResponse {
@@ -130,6 +249,9 @@ export interface FundDiscoveryResponse {
   candidates: FundCandidate[];
   clarifying_questions: string[];
   summary: string;
+  llm_explanation: string;
+  llm_used: boolean;
+  decision_basis: string[];
   data_notes: string[];
   compliance_warnings: string[];
 }
@@ -151,11 +273,11 @@ export async function searchFunds(query: string): Promise<FundProfile[]> {
   return payload.items;
 }
 
-export async function createFundCheckup(code: string): Promise<FundCheckupReport> {
+export async function createFundCheckup(code: string, riskProfile?: UserRiskProfile): Promise<FundCheckupReport> {
   const response = await fetch("/api/reports/fund-checkup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code })
+    body: JSON.stringify({ code, ...(riskProfile ? { risk_profile: riskProfile } : {}) })
   });
   if (!response.ok) {
     throw new Error("体检报告生成失败");
@@ -179,6 +301,34 @@ export async function discoverFunds(request: FundDiscoveryRequest): Promise<Fund
   const payload = await response.json();
   if (!payload.profile || !Array.isArray(payload.fund_type_matches) || !Array.isArray(payload.candidates)) {
     throw new Error("候选基金响应结构不完整");
+  }
+  return payload;
+}
+
+export async function fetchPeerComparison(code: string): Promise<PeerComparisonResponse> {
+  const response = await fetch(`/api/funds/${encodeURIComponent(code)}/peer-comparison`);
+  if (!response.ok) {
+    throw new Error("同类比较获取失败");
+  }
+  const payload = await response.json();
+  if (!payload.target || !payload.category || !Array.isArray(payload.items) || !payload.ranks) {
+    throw new Error("同类比较响应结构不完整");
+  }
+  return payload;
+}
+
+export async function compareFunds(codes: string[]): Promise<FundComparisonResponse> {
+  const response = await fetch("/api/funds/compare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codes })
+  });
+  if (!response.ok) {
+    throw new Error("候选基金比较失败");
+  }
+  const payload = await response.json();
+  if (!payload.watchlist || !Array.isArray(payload.items) || !payload.rankings) {
+    throw new Error("候选基金比较响应结构不完整");
   }
   return payload;
 }

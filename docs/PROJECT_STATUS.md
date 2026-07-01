@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 
 ## Current Phase
 
@@ -14,6 +14,8 @@ Backend:
 - CORS configured for local Vite frontend.
 - Health endpoint implemented.
 - Fund search/profile/NAV endpoints implemented.
+- Non-persisted watchlist comparison endpoint implemented at `POST /api/funds/compare`.
+- Same-category peer comparison endpoint implemented at `GET /api/funds/{code}/peer-comparison`.
 - Fund discovery endpoint implemented at `POST /api/fund-discovery`.
 - Single-fund checkup report endpoint implemented.
 - `FundService` coordinates provider access and SQLite cache.
@@ -25,9 +27,19 @@ Backend:
 - Deterministic metric calculator implemented.
 - Discovery rules module implemented for risk thresholds, fund type mappings, search keywords, seed codes, and recall limits.
 - Deterministic preference-to-fund-type mapping, expanded candidate recall, and candidate filtering implemented.
+- Discovery risk profile includes maximum acceptable temporary loss, expected holding months, whether the money use can be delayed, and money purpose; maximum loss is used to filter candidates by historical maximum drawdown.
+- Discovery research directions now return deterministic fit scores, basis, risk flags, missing context, and optional LLM-readable explanations without letting the LLM select or rank funds.
 - Optional LLM JSON profile parsing implemented before deterministic discovery; unavailable or invalid model output degrades to rule parsing.
+- Optional LLM discovery explanation implemented after deterministic matching; unavailable or invalid model output degrades to rule-based explanation.
+- Deterministic same-category comparison service implemented with type bucketing, target metric ranks, and skipped-peer data notes.
+- Deterministic watchlist comparison model implemented for user-supplied fund code lists.
 - Report generator implemented.
+- Report risk explanation now includes structured loss pressure, worst drawdown journey, volatility experience, exposure concentration, holding risk, and risk-adjusted return sections.
+- Single-fund checkup accepts an optional user risk profile and returns deterministic fit explanations, including expected holding months, delayed-use flexibility, and money purpose versus historical drawdown recovery pressure.
+- Single-fund checkup returns structured `data_quality` coverage for profile, NAV, deterministic metrics, holdings, industry allocation, and fees, including cache-hit and fallback-provider status.
+- Single-fund checkup returns backend workflow trace for data collection, degradation, and report generation stages.
 - Compliance checker implemented.
+- Compliance checker recursively sanitizes nested report structures.
 
 Frontend:
 
@@ -37,6 +49,10 @@ Frontend:
 - Frontend progress and chart state extracted into composables.
 - API client and TypeScript types implemented.
 - Fund discovery panel implemented before the direct fund-code checkup flow.
+- Candidate checkup launched from discovery carries the discovered risk profile into the single-fund report assessment.
+- Single-fund report view shows same-category position using the peer comparison endpoint when data is available.
+- Single-fund report notes show structured data coverage so users can see which sections are complete, cached, fallback-sourced, degraded, missing, or calculated.
+- Discovery candidates can be compared in the frontend through the non-persisted watchlist comparison API.
 - ECharts renders NAV, cumulative return, and drawdown charts.
 - Loading, error, empty, report, tab, and metric states implemented.
 - Visual progress bar and staged report generation status implemented.
@@ -61,21 +77,21 @@ Tests and verification:
 - `npm run build` passes.
 - API smoke tests passed for health and report endpoints.
 - Frontend local server responds with `200 OK`.
+- AKShare provider mapping has recorded fixture coverage for profile, NAV, holdings, industry allocation, and fee shapes.
 
 ## Not Completed
 
 - Explicit LangGraph node graph.
 - Real LLM report writer.
 - Full regulatory suitability questionnaire.
-- Multi-fund comparison.
+- Persistent watchlist management and standalone comparison workflow.
 - Portfolio analysis.
-- Holdings and industry concentration analysis.
+- Deeper holdings attribution, industry drift tracking, and manager-style analysis.
 - Fund manager attribution.
 - Announcement/quarterly report RAG.
 - Memory module.
 - SSE progress endpoint.
 - Screenshot asset under `docs/assets/`.
-- Recorded fixtures for AKShare integration tests.
 
 ## Known Issues
 

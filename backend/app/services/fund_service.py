@@ -1,4 +1,5 @@
 import os
+from threading import Lock
 from typing import List, Optional
 
 from app.data_providers.akshare_provider import AkshareFundDataProvider
@@ -23,7 +24,18 @@ class FundService:
         self.provider = provider or _build_default_provider()
         self.cache_namespace = _cache_namespace(self.provider)
         self.fallback_provider = fallback_provider or SampleFundDataProvider()
+        self.fallback_namespace = _cache_namespace(self.fallback_provider)
         self.cache = cache or SQLiteCache()
+        self._data_events = []
+        self._data_events_lock = Lock()
+
+    def clear_data_events(self) -> None:
+        with self._data_events_lock:
+            self._data_events = []
+
+    def get_data_events(self) -> List[dict]:
+        with self._data_events_lock:
+            return [dict(item) for item in self._data_events]
 
     def search_funds(self, query: str) -> List[FundProfile]:
         try:
@@ -41,6 +53,7 @@ class FundService:
         cache_key = "%s:profile:%s" % (self.cache_namespace, code)
         cached = self.cache.get(cache_key, PROFILE_TTL_SECONDS)
         if cached:
+            self._record_data_event("profile", cached.get("data_source") or self.cache_namespace, cache_hit=True)
             return FundProfile(**cached)
 
         profile = self._get_profile_uncached(code)
@@ -51,6 +64,7 @@ class FundService:
         cache_key = "%s:nav:%s" % (self.cache_namespace, code)
         cached = self.cache.get(cache_key, NAV_TTL_SECONDS)
         if cached:
+            self._record_data_event("nav_points", "%s:cache" % self.cache_namespace, cache_hit=True)
             return [NavPoint(**item) for item in cached]
 
         points = self._get_nav_uncached(code)
@@ -61,6 +75,7 @@ class FundService:
         cache_key = "%s:holdings:%s" % (self.cache_namespace, code)
         cached = self.cache.get(cache_key, HOLDINGS_TTL_SECONDS)
         if cached:
+            self._record_data_event("holdings", "%s:cache" % self.cache_namespace, cache_hit=True)
             return [FundHolding(**item) for item in cached]
         holdings = self._provider_with_fallback("get_holdings", code)
         self.cache.set(cache_key, [item.to_dict() for item in holdings])
@@ -70,6 +85,7 @@ class FundService:
         cache_key = "%s:industry:%s" % (self.cache_namespace, code)
         cached = self.cache.get(cache_key, HOLDINGS_TTL_SECONDS)
         if cached:
+            self._record_data_event("industry_allocation", "%s:cache" % self.cache_namespace, cache_hit=True)
             return [IndustryAllocation(**item) for item in cached]
         allocations = self._provider_with_fallback("get_industry_allocation", code)
         self.cache.set(cache_key, [item.to_dict() for item in allocations])
@@ -79,6 +95,7 @@ class FundService:
         cache_key = "%s:fees:%s" % (self.cache_namespace, code)
         cached = self.cache.get(cache_key, FEES_TTL_SECONDS)
         if cached:
+            self._record_data_event("fees", "%s:cache" % self.cache_namespace, cache_hit=True)
             return [FundFee(**item) for item in cached]
         fees = self._provider_with_fallback("get_fees", code)
         self.cache.set(cache_key, [item.to_dict() for item in fees])
@@ -86,21 +103,67 @@ class FundService:
 
     def _get_profile_uncached(self, code: str) -> FundProfile:
         try:
-            return self.provider.get_profile(code)
-        except Exception:
-            return self.fallback_provider.get_profile(code)
+            profile = self.provider.get_profile(code)
+            self._record_data_event("profile", profile.data_source or self.cache_namespace)
+            return profile
+        except Exception as exc:
+            profile = self.fallback_provider.get_profile(code)
+            self._record_data_event(
+                "profile",
+                profile.data_source or self.fallback_namespace,
+                fallback=True,
+                message="主数据源失败，已使用备用数据源：%s" % exc,
+            )
+            return profile
 
     def _get_nav_uncached(self, code: str) -> List[NavPoint]:
         try:
-            return self.provider.get_nav_history(code)
-        except Exception:
-            return self.fallback_provider.get_nav_history(code)
+            points = self.provider.get_nav_history(code)
+            self._record_data_event("nav_points", self.cache_namespace)
+            return points
+        except Exception as exc:
+            points = self.fallback_provider.get_nav_history(code)
+            self._record_data_event(
+                "nav_points",
+                self.fallback_namespace,
+                fallback=True,
+                message="主数据源失败，已使用备用数据源：%s" % exc,
+            )
+            return points
 
     def _provider_with_fallback(self, method_name: str, code: str):
+        section = _method_section(method_name)
         try:
-            return getattr(self.provider, method_name)(code)
-        except Exception:
-            return getattr(self.fallback_provider, method_name)(code)
+            result = getattr(self.provider, method_name)(code)
+            self._record_data_event(section, self.cache_namespace)
+            return result
+        except Exception as exc:
+            result = getattr(self.fallback_provider, method_name)(code)
+            self._record_data_event(
+                section,
+                self.fallback_namespace,
+                fallback=True,
+                message="主数据源失败，已使用备用数据源：%s" % exc,
+            )
+            return result
+
+    def _record_data_event(
+        self,
+        section: str,
+        source: str,
+        fallback: bool = False,
+        cache_hit: bool = False,
+        message: str = "",
+    ) -> None:
+        event = {
+            "section": section,
+            "source": source,
+            "fallback": fallback,
+            "cache_hit": cache_hit,
+            "message": message,
+        }
+        with self._data_events_lock:
+            self._data_events.append(event)
 
 
 def _build_default_provider() -> FundDataProvider:
@@ -116,3 +179,11 @@ def _cache_namespace(provider: FundDataProvider) -> str:
     if isinstance(provider, SampleFundDataProvider):
         return "sample"
     return provider.__class__.__name__.lower()
+
+
+def _method_section(method_name: str) -> str:
+    return {
+        "get_holdings": "holdings",
+        "get_industry_allocation": "industry_allocation",
+        "get_fees": "fees",
+    }.get(method_name, method_name)

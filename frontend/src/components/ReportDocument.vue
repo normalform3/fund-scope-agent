@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ClipboardCheck } from "@lucide/vue";
-import type { FundCheckupReport } from "../api";
+import type { FundCheckupReport, PeerComparisonResponse } from "../api";
 
 defineProps<{
   report: FundCheckupReport | null;
+  peerComparison: PeerComparisonResponse | null;
+  peerComparisonLoading: boolean;
+  peerComparisonError: string;
   selectedTab: "report" | "metrics" | "notes";
 }>();
 
@@ -19,6 +22,38 @@ function formatPercent(value: number | null | undefined) {
 function formatNumber(value: number | null | undefined) {
   if (typeof value !== "number") return "--";
   return value.toFixed(2);
+}
+
+function formatRiskMetric(label: string, value: number | null | undefined) {
+  if (typeof value !== "number") return "--";
+  if (label.includes("回撤") || label.includes("波动") || label.includes("占比")) {
+    return formatPercent(value);
+  }
+  if (label.includes("修复")) {
+    return `${value} 个交易日`;
+  }
+  return formatNumber(value);
+}
+
+function peerRankLabel(metric: string) {
+  return {
+    max_drawdown: "最大回撤控制",
+    annualized_volatility: "年化波动",
+    sharpe_ratio: "夏普比率"
+  }[metric] ?? metric;
+}
+
+function statusLabel(value: string) {
+  return {
+    success: "已取得",
+    fallback: "备用源",
+    cached: "缓存",
+    degraded: "降级",
+    missing: "缺失",
+    insufficient: "不足",
+    error: "失败",
+    skipped: "跳过"
+  }[value] ?? value;
 }
 </script>
 
@@ -43,6 +78,38 @@ function formatNumber(value: number | null | undefined) {
       </nav>
 
       <div v-if="selectedTab === 'report'" class="notion-list">
+        <h3>风险画像适配</h3>
+        <p>
+          <strong>{{ report.risk_profile_assessment?.fit_level ?? "未评估" }}</strong>
+          <span> · {{ report.risk_profile_assessment?.status ?? "not_provided" }}</span>
+        </p>
+        <p v-for="item in report.risk_profile_assessment?.reasons ?? []" :key="item">{{ item }}</p>
+        <p v-for="item in report.risk_profile_assessment?.risk_flags ?? []" :key="item">{{ item }}</p>
+        <h3>风险解释</h3>
+        <template v-for="item in report.risk_explanation ?? []" :key="item.key">
+          <p>
+            <strong>{{ item.title }} · {{ item.level }}</strong>
+            <span>（{{ item.metric_label }} {{ formatRiskMetric(item.metric_label, item.metric_value) }}）</span>
+          </p>
+          <p>{{ item.explanation }} {{ item.user_meaning }}</p>
+        </template>
+        <h3>同类位置</h3>
+        <p v-if="peerComparisonLoading">正在加载同类比较，用于判断这只基金在相近类型样本中的位置。</p>
+        <p v-else-if="peerComparisonError">{{ peerComparisonError }}，本次报告仍可基于单只基金数据阅读。</p>
+        <template v-else-if="peerComparison">
+          <p>
+            <strong>{{ peerComparison.category.bucket }}</strong>
+            <span> · {{ peerComparison.category.matching_rule }}</span>
+          </p>
+          <div class="compact-table">
+            <div v-for="metric in ['max_drawdown', 'annualized_volatility', 'sharpe_ratio']" :key="metric">
+              <span>{{ peerRankLabel(metric) }}</span>
+              <strong>{{ peerComparison.ranks[metric]?.note ?? '该指标数据不足，无法计算同类位置。' }}</strong>
+            </div>
+          </div>
+          <p v-for="note in peerComparison.data_notes.slice(0, 3)" :key="note">{{ note }}</p>
+        </template>
+        <p v-else>暂无同类比较数据。</p>
         <h3>主要风险</h3>
         <p v-for="item in report.risk_notes" :key="item">{{ item }}</p>
         <h3>适合人群</h3>
@@ -63,6 +130,24 @@ function formatNumber(value: number | null | undefined) {
       </div>
 
       <div v-if="selectedTab === 'notes'" class="notion-list">
+        <h3>数据覆盖</h3>
+        <div class="compact-table" v-if="report.data_quality?.length">
+          <div v-for="item in report.data_quality" :key="item.section">
+            <span>{{ item.label }} · {{ item.source }} · {{ item.note }}</span>
+            <strong>{{ statusLabel(item.status) }} / {{ item.item_count }}</strong>
+          </div>
+        </div>
+        <p v-else>暂无结构化数据覆盖说明。</p>
+
+        <h3>流程状态</h3>
+        <div class="compact-table" v-if="report.workflow_trace?.length">
+          <div v-for="item in report.workflow_trace" :key="item.stage">
+            <span>{{ item.label }} · {{ item.message }}</span>
+            <strong>{{ item.status }}</strong>
+          </div>
+        </div>
+        <p v-else>暂无后端流程状态。</p>
+
         <h3>前十大持仓</h3>
         <div class="compact-table" v-if="report.holdings?.length">
           <div v-for="item in report.holdings.slice(0, 10)" :key="`${item.stock_code}-${item.stock_name}`">

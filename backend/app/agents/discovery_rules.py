@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 from app.models import FundTypeMatch, InvestorPreferenceProfile
 
@@ -25,12 +25,16 @@ class FundTypeRule:
     name_keywords: List[str]
     seed_codes: List[str]
 
-    def to_match(self) -> FundTypeMatch:
+    def to_match(self, profile: Optional[InvestorPreferenceProfile] = None, rank: int = 0) -> FundTypeMatch:
         return FundTypeMatch(
             fund_type=self.fund_type,
             reason=self.reason,
             unsuitable_for=self.unsuitable_for,
             search_keywords=self.search_keywords,
+            fit_score=_fit_score(self, profile, rank),
+            basis=_basis(self, profile),
+            risk_flags=_risk_flags(self, profile),
+            missing_context=_missing_context(profile),
         )
 
 
@@ -107,8 +111,8 @@ def match_fund_type_rules(profile: InvestorPreferenceProfile) -> List[FundTypeRu
     return _dedupe_rules(rules)
 
 
-def rules_to_matches(rules: Iterable[FundTypeRule]) -> List[FundTypeMatch]:
-    return [rule.to_match() for rule in rules]
+def rules_to_matches(rules: Iterable[FundTypeRule], profile: Optional[InvestorPreferenceProfile] = None) -> List[FundTypeMatch]:
+    return [rule.to_match(profile, index) for index, rule in enumerate(rules)]
 
 
 def select_type_rules(rules: List[FundTypeRule], selected_fund_type: str) -> List[FundTypeRule]:
@@ -131,3 +135,67 @@ def _dedupe_rules(rules: Iterable[FundTypeRule]) -> List[FundTypeRule]:
         seen.add(rule.fund_type)
         result.append(rule)
     return result
+
+
+def _fit_score(rule: FundTypeRule, profile: Optional[InvestorPreferenceProfile], rank: int) -> float:
+    score = 88.0 - rank * 8
+    if not profile:
+        return max(score, 50.0)
+    if rule.fund_type == "货币型 / 短债型" and (profile.horizon == "short" or profile.liquidity_need == "high"):
+        score += 8
+    if rule.fund_type == "债券型" and profile.risk_tolerance == "low":
+        score += 8
+    if rule.fund_type == "债券型 / 固收+" and profile.risk_tolerance == "medium":
+        score += 6
+    if rule.fund_type == "宽基指数型" and profile.horizon == "long":
+        score += 5
+    if rule.fund_type in {"偏股混合型", "行业主题型"} and profile.risk_tolerance == "high":
+        score += 6
+    if profile.experience_level == "beginner" and rule.fund_type == "行业主题型":
+        score -= 10
+    if profile.horizon == "short" and rule.fund_type in {"宽基指数型", "偏股混合型", "行业主题型"}:
+        score -= 12
+    return min(100.0, max(score, 45.0))
+
+
+def _basis(rule: FundTypeRule, profile: Optional[InvestorPreferenceProfile]) -> List[str]:
+    basis = [rule.reason]
+    if not profile:
+        return basis
+    if profile.risk_tolerance == "low":
+        basis.append("用户画像偏保守，优先控制净值波动和最大回撤。")
+    elif profile.risk_tolerance == "medium":
+        basis.append("用户画像偏平衡，需要在回撤控制和收益弹性之间取舍。")
+    else:
+        basis.append("用户画像偏进取，可以研究权益敞口，但仍需检查回撤边界。")
+    if profile.horizon == "short" or profile.liquidity_need == "high":
+        basis.append("资金期限或流动性要求较高，短期资金不宜优先暴露在高波动方向。")
+    if profile.experience_level == "beginner":
+        basis.append("新手画像优先选择结构更清晰、解释成本更低的基金方向。")
+    return basis[:4]
+
+
+def _risk_flags(rule: FundTypeRule, profile: Optional[InvestorPreferenceProfile]) -> List[str]:
+    flags = [rule.unsuitable_for]
+    if not profile:
+        return flags
+    if profile.horizon == "short" and rule.fund_type in {"宽基指数型", "偏股混合型", "行业主题型"}:
+        flags.append("短期资金遇到市场波动时，可能来不及等待净值修复。")
+    if profile.risk_tolerance == "low" and rule.fund_type in {"偏股混合型", "行业主题型"}:
+        flags.append("保守画像不应把权益或主题方向作为优先研究对象。")
+    if profile.experience_level == "beginner" and rule.fund_type == "行业主题型":
+        flags.append("行业主题型通常集中度更高，新手需要额外关注持仓和回撤。")
+    return flags[:3]
+
+
+def _missing_context(profile: Optional[InvestorPreferenceProfile]) -> List[str]:
+    if not profile:
+        return ["还需要确认资金期限、风险承受和流动性需求。"]
+    missing = []
+    if profile.risk_tolerance == "medium":
+        missing.append("可补充最大可接受阶段性亏损幅度。")
+    if profile.liquidity_need == "medium":
+        missing.append("可确认这笔钱是否会用于生活、应急或短期支出。")
+    if profile.investment_goal == "希望先找到值得进一步研究的基金候选":
+        missing.append("可补充具体目标，例如备用金、养老、教育金或长期资产配置。")
+    return missing[:3]
