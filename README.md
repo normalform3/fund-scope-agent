@@ -1,113 +1,291 @@
 # FundScope Agent
 
-FundScope Agent 是一个基金研究与风险分析 Agent 项目，目标是帮助普通投资者看懂基金的历史表现、回撤风险和适合人群，而不是替用户做买入或卖出决策。
-
-当前版本是作品展示级 MVP：用户可以先在“寻找基金”模块通过问卷获得基金大类方向，再补充要求细化候选观察基金；也可以进入“基金分析”模块直接输入基金代码生成结构化体检报告。系统会获取基金档案和历史净值，使用 Python 计算核心风险收益指标，并经过合规检查，避免出现“稳赚”“保证收益”“强烈推荐买入”等不合规表述。
+FundScope Agent 是一个面向普通基金投资者的基金研究与风险体检工作台：通过基金发现、真实数据采集、确定性风险指标计算和合规化报告，帮助用户理解一只基金的历史收益、回撤压力、持仓暴露和适合观察边界。
 
 > 仅供研究参考，不构成投资建议。基金有风险，投资需谨慎。
 
+## 项目展示
+
+### 1. 基金发现入口
+
+用户还不知道具体基金代码时，先通过自然语言目标和风险偏好问卷确定研究方向。
+
+![基金发现入口](docs/assets/fundscope-discovery-form.png)
+
+### 2. 基金大类推荐与风险边界
+
+系统先推荐基金大类，再解释匹配依据、风险边界和需要继续确认的问题，不直接给出买卖结论。
+
+![基金大类推荐](docs/assets/fundscope-discovery-category.png)
+
+### 3. 进一步细化候选基金
+
+用户选择基金大类后，可以补充“波动小、费用低、先观察”等进一步要求，系统再输出候选观察基金，并保留筛选依据和风险提示。
+
+![进一步细化候选基金](docs/assets/fundscope-discovery-candidates.png)
+
+### 4. 单只基金分析工作台
+
+输入基金代码后，前端展示生成进度、净值曲线、风险指标、基金档案和结构化报告。
+
+![单只基金分析工作台](docs/assets/fundscope-analysis-workbench.png)
+
+### 5. 风险解释与同类位置
+
+报告将最大回撤、波动率、夏普比率、持仓集中度等指标翻译成普通用户能理解的风险说明。
+
+![风险解释与同类位置](docs/assets/fundscope-risk-report.png)
+
+### 6. 持仓、行业配置与费率规则
+
+除净值指标外，系统还展示持仓、行业配置和交易规则，帮助用户从多个维度理解基金。
+
+![持仓行业与费率](docs/assets/fundscope-holdings-fees.png)
+
 ## 项目背景
 
-很多普通用户选择基金时只看短期涨幅、排行榜或他人推荐，但很少能系统判断：
+很多普通用户选择基金时，容易被短期涨幅、排行榜或碎片化推荐影响，却缺少一套能回答以下问题的分析工具：
 
-- 收益是否来自长期能力，还是短期风口。
-- 历史最大回撤有多深，是否能承受。
-- 波动率和夏普比率是否匹配收益表现。
-- 当前基金更适合稳健观察，还是只适合高风险用户。
-- 报告中的结论是否有清晰数据依据和风险提示。
+- 这只基金的历史最大回撤有多深，用户是否能承受。
+- 收益表现是否伴随较高波动，风险收益是否匹配。
+- 基金的持仓、行业暴露和费率规则是否清楚。
+- 用户还不知道具体基金代码时，应该先研究哪类基金。
+- AI 输出是否会越界成直接投资建议，是否有合规保护。
 
-FundScope Agent 将这些分析流程产品化：确定性代码负责数据、指标和底线判断，Agent 工作流负责组织分析步骤，前端工作台负责可视化展示。
+FundScope Agent 将基金研究流程拆成可验证的工程模块：数据由 Provider 采集，指标由 Python 确定性计算，报告由结构化规则生成并经过合规检查，前端用工作台形式展示结果。项目目标不是替用户决策，而是帮助用户更有依据地理解基金风险。
 
 ## 核心功能
 
-已实现：
+| 功能 | 解决的问题 | 当前状态 |
+| --- | --- | --- |
+| 基金发现 | 用户不知道该分析哪只基金时，先根据目标、期限、风险承受和流动性需求匹配基金大类 | 已实现 |
+| 候选观察基金 | 用户选择基金大类并补充要求后，系统筛出可进一步研究的候选基金 | 已实现 |
+| 单只基金体检 | 输入基金代码后生成结构化研究报告，避免只看单一收益数据 | 已实现 |
+| 风险收益指标计算 | 用确定性代码计算累计收益、最大回撤、年化波动、夏普比率等核心指标 | 已实现 |
+| 真实数据与缓存 | 默认接入 AKShare，并用 SQLite 缓存降低重复请求和演示不稳定性 | 已实现 |
+| 持仓与行业暴露 | 展示前十大持仓、行业配置和集中度风险，补充净值曲线以外的信息 | 已实现 |
+| 同类基金位置 | 将目标基金放入同类样本中比较最大回撤、波动率、夏普比率等指标 | 已实现 |
+| 合规报告护栏 | 通过结论白名单、敏感话术扫描和免责声明，避免输出直接投资建议 | 已实现 |
 
-- 基金分析入口：`GET /api/funds/search?q=110011` 搜索基金并生成体检报告。
-- 寻找基金模块：`POST /api/fund-discovery` 先根据目标、期限、风险承受和流动性需求匹配基金研究方向，并返回匹配分数、依据、风险边界和待确认问题；自然语言和结果解释可由 LLM 辅助，但候选筛选、指标计算、排序和合规检查仍由确定性代码完成。
-- 基金基础档案：名称、代码、类型、成立时间、基金经理、基金公司、规模、申赎状态等。
-- 历史净值数据：单位净值、累计净值时间序列。
-- 风险收益指标：累计收益、年化收益、年化波动率、最大回撤、夏普比率、卡玛比率、胜率、阶段收益。
-- 回撤分析：最大回撤起点、谷底、修复天数和回撤曲线。
-- 基金体检报告：结论、摘要、风险提示、适合人群、不适合人群、数据说明、合规提示。
-- 合规检查：自动拦截或改写不合规投资建议话术。
-- Vue 工作台：基金输入、指标卡片、净值曲线、累计收益曲线、回撤曲线和右侧报告面板。
-- SQLite 缓存：按数据源命名空间缓存基金档案和净值，避免重复请求。
-- AKShare 真实数据：默认使用 AKShare 获取基金档案、单位/累计净值、持仓、行业配置和费率；失败时 fallback 到 sample。
-- 百炼模型连接测试：通过 OpenAI-compatible SDK 测试 `qwen3.6-plus` 服务可用性。
+## 技术架构
 
-规划中：
+| 层级 | 技术选型 | 负责内容 | 设计原因 |
+| --- | --- | --- | --- |
+| 前端 | Vue 3, Vite, TypeScript, ECharts, `@lucide/vue` | 研究工作台、基金发现表单、图表、报告面板、进度状态 | Vue 适合快速构建交互工作台，ECharts 适合展示净值、收益和回撤时间序列 |
+| 后端 API | FastAPI, Pydantic | REST API、请求校验、错误返回、CORS、本地开发服务 | FastAPI 类型清晰、接口开发快，适合把分析流程封装成结构化 API |
+| 数据层 | AKShare Provider, Sample Provider | 基金档案、净值、持仓、行业配置、费率等数据采集 | AKShare 用于真实数据探索，Sample Provider 保证离线演示和测试稳定 |
+| 缓存 | SQLite | 缓存 Provider 响应，按数据源命名空间隔离 | 降低重复请求成本，避免 AKShare 波动导致演示完全不可用 |
+| 指标计算 | Python deterministic metrics | 累计收益、年化收益、最大回撤、波动率、夏普比率、卡玛比率、胜率 | 金融指标必须可复现、可测试，不交给 LLM 计算 |
+| Agent 工作流 | 当前为 LangGraph-compatible workflow wrapper | 编排数据采集、指标计算、报告生成、合规检查，并记录 workflow trace | 先用简单线性流程保证可靠性，后续可拆成显式 LangGraph 节点 |
+| LLM 调用 | OpenAI-compatible text model health check, optional JSON profile parsing | 模型连通性测试、用户偏好 JSON 解析、已计算结果的解释辅助 | LLM 只做语言理解和解释，不参与基金筛选、排序和指标计算 |
+| 合规模块 | 规则扫描、结论白名单、免责声明注入 | 统一处理报告和发现结果中的合规边界 | 金融研究产品需要明确避免直接买卖导向 |
+| 部署方式 | 本地 Uvicorn + Vite；线上地址待补充 | 后端 API 与前端工作台分离运行 | 当前为作品展示级 MVP，生产部署和授权数据源仍需后续补齐 |
 
-- 更完整的用户风险画像和适当性问卷。
-- 多基金对比。
-- 持仓、行业集中度和风格漂移分析。
-- 定投回测。
-- 公告/季报 RAG。
-- Memory 保存用户关注列表、风险偏好和历史分析上下文。
-- SSE 实时输出 Agent 分析进度。
-
-## 技术栈
-
-- Backend: FastAPI, Python, Pydantic, SQLite
-- Metrics: Python 标准库，后续可扩展 Pandas / NumPy
-- Data Providers: AKShare provider, sample fallback provider, Tushare 预留
-- Agent Workflow: 当前为 LangGraph-compatible workflow wrapper，后续拆为显式 LangGraph 节点
-- Frontend: Vue 3, Vite, TypeScript, ECharts, `@lucide/vue`
-- Tests: pytest, Vue type check, Vite production build
-
-## 架构概览
+## 架构图
 
 ```mermaid
 flowchart LR
-  User["用户目标或基金代码"] --> Frontend["Vue + ECharts 工作台"]
-  Frontend --> API["FastAPI API"]
-  API --> Discovery["FundDiscoveryWorkflow"]
-  API --> Workflow["FundCheckupWorkflow"]
-  Discovery --> Service
-  Workflow --> Service["FundService"]
-  Service --> Cache["SQLite cache"]
-  Service --> Provider["sample / AKShare provider"]
-  Workflow --> Metrics["Python 指标计算"]
-  Metrics --> Report["结构化体检报告"]
-  Report --> Compliance["合规检查"]
+  User["用户输入：自然语言目标 / 问卷 / 基金代码"] --> Frontend["Vue 3 + ECharts 研究工作台"]
+  Frontend --> API["FastAPI REST API"]
+
+  API --> Discovery["FundDiscoveryWorkflow<br/>基金发现流程"]
+  API --> Checkup["FundCheckupWorkflow<br/>单只基金体检流程"]
+  API --> LLMHealth["LLM Health Check<br/>模型连通性测试"]
+
+  Discovery --> Rules["Discovery Rules<br/>风险画像与基金类型规则"]
+  Discovery --> CandidateRecall["Candidate Recall<br/>候选召回与过滤"]
+  CandidateRecall --> Service["FundService"]
+
+  Checkup --> Service
+  Service --> Cache["SQLite Cache<br/>provider namespace keys"]
+  Service --> Provider["Data Providers<br/>AKShare / Sample fallback"]
+  Provider --> External["外部数据源<br/>AKShare"]
+
+  Checkup --> Metrics["Metric Calculator<br/>确定性风险收益指标"]
+  Checkup --> Peer["Peer Comparison<br/>同类位置比较"]
+  Metrics --> Report["Report Generator<br/>结构化体检报告"]
+  Peer --> Report
+  Report --> Compliance["Compliance Checker<br/>合规话术与结论白名单"]
   Compliance --> Frontend
 ```
 
-关键设计原则：
+## 核心流程
 
-- 金融指标必须由确定性代码计算，不能让 LLM 直接算。
-- Agent 只负责流程编排、解释生成和合规改写。
-- 数据不足时降级为“数据不足，暂不评价”，不硬编结论。
-- 默认走 AKShare 真实数据；公开接口失败时降级到 sample provider。
+1. 用户进入工作台，可以选择“寻找基金”或“基金分析”。
+2. 如果用户不知道基金代码，先输入目标并填写风险承受、资金期限、流动性、经验水平等问题。
+3. 后端将用户输入转成偏好画像，并通过规则模块匹配基金大类，返回匹配分数、依据、风险提示和待确认问题。
+4. 用户选择一个基金大类并补充要求后，系统通过 Provider 召回候选基金，用确定性指标和风险阈值过滤，输出“候选观察”列表。
+5. 用户点击候选基金或直接输入基金代码，进入单只基金体检流程。
+6. 后端并行采集基金档案、历史净值、持仓、行业配置和费率数据，并记录缓存命中、降级和缺失状态。
+7. 指标计算模块根据净值序列计算累计收益、最大回撤、年化波动率、夏普比率、回撤区间等指标。
+8. 报告生成模块整合基金档案、风险指标、持仓配置、同类位置和用户风险画像，生成结构化报告。
+9. 合规模块统一检查报告结论和措辞，追加研究参考免责声明。
+10. 前端展示进度、图表、指标卡片、风险解释、数据质量说明和最终结论，形成完整研究闭环。
 
-## 运行方式
+## 技术亮点
 
-### 后端
+### 1. 将金融计算与 LLM 能力解耦
+
+| 维度 | 内容 |
+| --- | --- |
+| 遇到的问题 | 基金分析涉及收益、回撤、波动率等确定性计算，如果交给 LLM 容易出现不可复现或错误计算 |
+| 设计思路 | LLM 只用于自然语言偏好解析和解释辅助，基金筛选、排序、指标计算和合规检查全部由确定性代码完成 |
+| 使用的技术 | Python 指标计算模块、Pydantic DTO、规则化 Discovery Workflow、合规检查器 |
+| 带来的效果 | 报告结果可测试、可追踪，面试时能清楚说明“哪些是模型能力，哪些是工程确定性能力” |
+
+### 2. AKShare 真实数据优先 + Sample 稳定降级
+
+| 维度 | 内容 |
+| --- | --- |
+| 遇到的问题 | 作品展示需要尽量接真实数据，但公开数据接口可能慢、字段变化或临时不可用 |
+| 设计思路 | 抽象统一 Provider 接口，默认使用 AKShare；接口失败时保留 Sample Provider 作为 fallback，并通过 data_quality 暴露数据来源状态 |
+| 使用的技术 | Provider interface、AKShare adapter、SQLite cache、provider namespace cache key |
+| 带来的效果 | 项目既能展示真实数据接入能力，也能保证离线演示和测试不被外部接口完全阻断 |
+
+### 3. 基金发现采用“先大类、后候选”的分阶段流程
+
+| 维度 | 内容 |
+| --- | --- |
+| 遇到的问题 | 新手用户往往不知道基金代码，但直接给具体基金容易变成推荐导向，也缺少风险确认 |
+| 设计思路 | 先根据风险画像推荐基金大类，再让用户选择方向并补充要求，最后筛出候选观察基金 |
+| 使用的技术 | `FundDiscoveryWorkflow`、`discovery_rules.py`、风险阈值、候选召回、最大回撤过滤 |
+| 带来的效果 | 产品逻辑更接近真实研究流程，降低直接荐基风险，也让面试官能看到完整业务拆解 |
+
+### 4. 报告透明化：workflow trace + data quality
+
+| 维度 | 内容 |
+| --- | --- |
+| 遇到的问题 | 用户和开发者都需要知道报告是否来自完整数据、缓存数据、fallback 数据或缺失数据 |
+| 设计思路 | 在后端流程中记录数据采集、降级、缓存命中和报告生成状态，并在报告响应中结构化返回 |
+| 使用的技术 | `workflow_trace`、`data_quality`、FastAPI JSON response、前端状态面板 |
+| 带来的效果 | 报告不是黑盒结果，调试时能定位数据源问题，展示时也能体现工程可观测性 |
+
+### 5. 面向合规边界的报告生成
+
+| 维度 | 内容 |
+| --- | --- |
+| 遇到的问题 | 金融类 AI 应用容易输出过度确定、暗示收益或直接交易导向的内容 |
+| 设计思路 | 报告结论限制在白名单内，输出前统一扫描和清洗，并固定附加风险免责声明 |
+| 使用的技术 | 合规词扫描、结论白名单、递归报告清洗、结构化报告模板 |
+| 带来的效果 | 项目定位清晰：做基金研究和风险解释，不做销售、交易或确定性收益承诺 |
+
+## 项目难点与解决方案
+
+### 1. 外部数据源不稳定
+
+AKShare 接口可能慢、字段变化或返回空数据。项目通过 Provider 抽象隔离外部字段，使用 SQLite 缓存减少重复请求；当主 Provider 失败时降级到 sample 数据，并在 `data_quality` 中标记缓存、降级或缺失状态，避免前端误以为数据完整。
+
+### 2. LLM 幻觉与金融计算可靠性
+
+基金指标不能由模型自由生成。项目将收益、回撤、波动率、夏普比率等全部放在 `backend/app/metrics/calculator.py` 中确定性计算；LLM 仅作为可选的偏好解析和解释辅助，即使模型不可用，核心基金发现和报告仍可通过规则流程运行。
+
+### 3. 新手找基金的产品边界
+
+如果一开始就输出具体基金，很容易变成直接推荐。项目采用“基金大类 -> 补充要求 -> 候选观察 -> 单只体检”的分阶段流程，并在文案上使用“候选观察”“可进一步研究”等表达，让用户先理解方向，再进入数据分析。
+
+### 4. 慢流程的前端体验
+
+真实数据采集和图表渲染不是瞬时完成。前端拆出进度状态和图表状态 composable，展示“匹配基金代码、采集真实数据、计算指标并生成报告、加载图表数据、完成体检”等阶段，减少用户面对空白页面等待的不确定感。
+
+## 项目结构
+
+```text
+fund-scope/
+├── backend/
+│   └── app/
+│       ├── api.py                         # FastAPI 路由层，负责请求校验和响应组织
+│       ├── models.py                      # 内部 DTO 与 API 数据结构
+│       ├── agents/
+│       │   ├── fund_discovery.py          # 基金发现流程：画像、类型匹配、候选筛选
+│       │   ├── discovery_rules.py         # 风险阈值、基金类型映射、召回规则
+│       │   └── fund_checkup_graph.py      # 单只基金体检工作流，目前为线性 wrapper
+│       ├── compliance/
+│       │   └── checker.py                 # 合规词扫描、结论白名单、免责声明处理
+│       ├── data_providers/
+│       │   ├── base.py                    # Provider 抽象接口
+│       │   ├── akshare_provider.py        # AKShare 真实数据适配
+│       │   └── sample_provider.py         # 离线演示与测试 fallback 数据
+│       ├── metrics/
+│       │   └── calculator.py              # 收益、回撤、波动率等确定性指标计算
+│       ├── reports/
+│       │   └── generator.py               # 结构化基金体检报告生成
+│       ├── services/
+│       │   ├── fund_service.py            # Provider 调用、缓存协调、fallback 管理
+│       │   ├── peer_comparison_service.py # 同类基金位置比较
+│       │   └── llm_service.py             # OpenAI-compatible 模型连接测试与辅助能力
+│       └── storage/
+│           └── cache.py                   # SQLite 缓存
+├── frontend/
+│   └── src/
+│       ├── App.vue                        # 工作台主编排
+│       ├── api.ts                         # 前端 API 客户端和 TypeScript 类型
+│       ├── components/                    # 发现、图表、报告、侧边栏等 focused components
+│       ├── composables/                   # 进度状态和图表状态复用逻辑
+│       ├── main.ts                        # Vue 应用入口
+│       └── styles.css                     # 全局工作台样式
+├── docs/
+│   ├── API.md                             # API 合同和示例
+│   ├── ARCHITECTURE.md                    # 架构、模块边界和未来设计
+│   ├── COMPLIANCE.md                      # 合规边界与输出规则
+│   ├── DATA_SOURCES.md                    # 数据源说明与商业化限制
+│   ├── METRICS.md                         # 指标定义和边界情况
+│   ├── PRD.md                             # 产品需求和非目标
+│   ├── PROJECT_STATUS.md                  # 当前完成度、已知问题和下一步
+│   └── assets/                            # README 截图资源
+├── tests/                                 # pytest 覆盖指标、合规、报告、发现和 Provider 映射
+├── requirements.txt                       # Python 依赖
+├── pyproject.toml                         # Python 项目与 pytest 配置
+└── README.md                              # 面向面试官的项目展示入口
+```
+
+## 快速开始
+
+### 1. 克隆项目
+
+```bash
+git clone xxx
+cd fund-scope
+```
+
+### 2. 创建并安装后端依赖
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-pytest
+```
+
+### 3. 配置环境变量
+
+项目默认使用 AKShare Provider，并在失败时降级到 sample。也可以强制使用 sample，方便离线演示：
+
+```bash
+export FUNDSCOPE_DATA_PROVIDER=sample
+```
+
+如果需要测试 OpenAI-compatible 模型连接，配置以下变量：
+
+```bash
+export DASHSCOPE_API_KEY=xxx
+export DASHSCOPE_BASE_URL=xxx
+export DASHSCOPE_MODEL=xxx
+```
+
+不要把私有模型地址、API Key、Workspace ID 或账号相关服务端点写入仓库。
+
+### 4. 启动后端
+
+```bash
 uvicorn app.main:app --app-dir backend --reload
 ```
 
-默认使用 AKShare 真实数据，并在公开接口失败时降级到 sample 数据。强制使用 sample：
+后端默认地址：
 
-```bash
-FUNDSCOPE_DATA_PROVIDER=sample uvicorn app.main:app --app-dir backend --reload
+```text
+http://127.0.0.1:8000
 ```
 
-百炼模型连接测试需要配置：
-
-```bash
-DASHSCOPE_API_KEY=...
-DASHSCOPE_BASE_URL=...
-DASHSCOPE_MODEL=qwen3.6-plus
-```
-
-`DASHSCOPE_BASE_URL` 请放在本地环境变量或部署环境中，不要写入仓库。
-
-### 前端
+### 5. 启动前端
 
 ```bash
 cd frontend
@@ -115,99 +293,72 @@ npm install
 npm run dev
 ```
 
-如需让前端代理到 sample 模式后端：
-
-```bash
-VITE_API_PROXY_TARGET=http://127.0.0.1:8001 npm run dev
-```
-
-打开：
+前端默认地址：
 
 ```text
 http://127.0.0.1:5173
 ```
 
-### 验证
+### 6. API smoke test
 
 ```bash
-source venv/bin/activate
-pytest
-cd frontend
-npm run build
-```
-
-## API 摘要
-
-- `GET /api/health`
-- `GET /api/funds/search?q=110011`
-- `GET /api/funds/{code}/profile`
-- `GET /api/funds/{code}/nav`
-- `GET /api/funds/{code}/holdings`
-- `GET /api/funds/{code}/industry-allocation`
-- `GET /api/funds/{code}/fees`
-- `POST /api/fund-discovery`
-- `POST /api/reports/fund-checkup`
-- `GET /api/llm/health`
-
-示例：
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/fund-discovery \
-  -H "Content-Type: application/json" \
-  -d '{"goal_text":"我是新手，希望稳健一点","answers":{"risk_tolerance":"low","horizon":"short","liquidity_need":"high"},"include_candidates":false}'
+curl http://127.0.0.1:8000/api/health
 
 curl -X POST http://127.0.0.1:8000/api/reports/fund-checkup \
   -H "Content-Type: application/json" \
   -d '{"code":"110011"}'
 ```
 
-完整接口说明见 [docs/API.md](docs/API.md)。
-
-## 功能截图
-
-当前截图占位：
-
-```text
-docs/assets/fundscope-workbench.png
-```
-
-截图应展示：
-
-- 左侧功能导航。
-- 基金搜索框。
-- 指标卡片。
-- 净值、累计收益、回撤图表。
-- 右侧基金体检报告和合规提示。
-
-## 技术亮点
-
-- 将基金研究流程拆成 Provider、指标计算、报告生成、合规检查和 Agent 编排，职责边界清楚。
-- 确定性指标计算与 LLM/Agent 职责解耦，避免模型幻觉影响金融计算。
-- 内置合规词扫描和报告结论白名单，避免把研究辅助工具做成荐基工具。
-- 默认 AKShare provider 支持真实数据，sample provider 作为稳定 fallback。
-- 前端不是聊天壳，而是可视化研究工作台，更适合作品展示。
-- 文档体系覆盖 PRD、架构、API、指标、合规和项目状态，方便长期维护和面试讲解。
-
 ## 后续规划
 
-1. 将 `FundCheckupWorkflow` 拆成显式 LangGraph 节点：数据采集、指标计算、报告解释、合规检查。
-2. 将候选筛选中的画像解析升级为可审计的 LLM 结构化解析。
-3. 增加多基金对比和同类基金排名。
-4. 接入持仓、行业配置、基金经理和规模变化数据。
-5. 加入定投回测和一次性买入对比。
-6. 加入公告/季报 RAG，并在报告中显示引用来源。
-7. 使用 SSE 输出分析进度，让用户看到数据采集、计算、报告生成和合规检查阶段。
+1. 将 `FundCheckupWorkflow` 拆成显式 LangGraph 节点，明确数据采集、指标计算、解释生成、合规检查的节点职责和失败处理。
+2. 增加 SSE 进度流，让真实数据采集、指标计算和报告生成可以增量反馈到前端。
+3. 完善多基金对比与持久化观察池，支持用户把候选基金加入 watchlist 后持续比较。
+4. 接入公告、季报和年报 RAG，在报告中展示来源引用，用于解释持仓变化和基金经理观点。
+5. 增加更完整的风险画像问卷和适当性边界，但仍保持“不做直接交易建议”的产品定位。
 
-## 简历描述
+## 项目收获
 
-简洁版：
+通过 FundScope Agent，我实践了从业务问题拆解到工程落地的完整链路：将基金研究场景拆成数据采集、指标计算、候选筛选、报告生成、合规检查和前端可视化多个模块；在 AI 应用中区分确定性逻辑与 LLM 能力边界；用 Provider、缓存、降级和状态暴露提升演示稳定性；同时用文档和测试维护项目的真实完成度。这些能力比单纯堆叠技术栈更接近真实工程项目的开发方式。
 
-> 基于 FastAPI + Vue + LangGraph 设计基金研究与风险分析 Agent，支持新手风险问卷、候选基金筛选、历史净值分析、最大回撤/波动率/夏普比率等指标计算、结构化基金体检报告生成和合规话术检查，帮助普通用户理解基金风险收益特征而非直接荐基。
+## 当前完成度
 
-技术版：
+已完成：
 
-> 设计 FundScope Agent 多层架构，将数据 Provider、确定性指标计算、Agent 工作流、报告生成和合规检查解耦；通过 Python 计算累计收益、年化波动率、最大回撤、夏普比率等指标，并在 FastAPI 中提供结构化报告 API，前端使用 Vue + ECharts 展示净值、收益和回撤曲线。系统内置结论白名单和禁用话术扫描，避免 LLM 参与金融计算或输出直接买卖建议。
+- FastAPI 后端与 Vue + ECharts 前端工作台。
+- AKShare 真实数据 Provider 与 sample fallback。
+- SQLite 缓存。
+- 基金发现、候选观察、单只基金体检和同类位置比较。
+- 风险收益指标、风险解释、持仓、行业配置和费率展示。
+- 合规检查、结论白名单和强制免责声明。
+- Bailian / OpenAI-compatible 模型连接测试。
+- pytest 覆盖指标、合规、报告、基金发现、同类比较和 AKShare 字段映射。
 
-## 数据与合规说明
+未完成：
 
-开发阶段默认使用 AKShare provider，sample provider 仅作为 fallback。AKShare 仅用于学习、研究和作品演示探索，不适合作为商业化数据源。若项目未来公开运营或商业化，需要替换为合规授权数据源，并进行法律、合规和数据授权审查。
+- 真实 LangGraph 节点图。
+- 在线 LLM 报告写作。
+- 完整监管级适当性问卷。
+- 持久化观察池和账户系统。
+- 公告/季报 RAG。
+- Memory 和 SSE 进度流。
+- 线上部署地址。
+
+## 验证命令
+
+```bash
+source venv/bin/activate
+pytest
+
+cd frontend
+npm run build
+```
+
+## 面试可追问点
+
+- 为什么基金指标必须由确定性代码计算，而不是交给 LLM。
+- AKShare 不稳定时如何保证演示和测试可用。
+- 基金发现为什么先推荐大类，而不是直接推荐具体基金。
+- `workflow_trace` 和 `data_quality` 如何帮助定位数据源和报告生成问题。
+- 如果要升级为真实 LangGraph，哪些节点应该拆出来，节点之间如何定义输入输出。
+- 金融类 AI 项目如何设计合规边界。
